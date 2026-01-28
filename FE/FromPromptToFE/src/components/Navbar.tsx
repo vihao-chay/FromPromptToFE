@@ -17,22 +17,22 @@ const Navbar: React.FC = () => {
             </div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white font-display">AI Code Gen</h1>
           </Link>
-          
+
           <nav className="hidden md:flex items-center gap-8">
-            <Link 
-              className={`text-sm font-semibold transition-colors ${isActive('/') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`} 
+            <Link
+              className={`text-sm font-semibold transition-colors ${isActive('/') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/"
             >
               Dashboard
             </Link>
-            <Link 
-              className={`text-sm font-medium transition-colors ${isActive('/github-integration') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`} 
+            <Link
+              className={`text-sm font-medium transition-colors ${isActive('/github-integration') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/github-integration"
             >
               GitHub
             </Link>
-            <Link 
-              className={`text-sm font-medium transition-colors ${isActive('/profile') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`} 
+            <Link
+              className={`text-sm font-medium transition-colors ${isActive('/profile') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/profile"
             >
               Profile
