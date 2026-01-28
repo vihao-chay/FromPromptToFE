@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import HomePage from './pages/HomePage';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -24,8 +25,17 @@ const App: React.FC = () => {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-            {/* Protected Routes Concept */}
-            <Route path="/" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
+            {/* Public Route: Only for unauthenticated users */}
+            <Route
+              path="/"
+              element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" replace />}
+            />
+
+            {/* Protected Routes */}
+            <Route
+              path="/dashboard"
+              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
+            />
             <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
             <Route path="/editor" element={isAuthenticated ? <Editor /> : <Navigate to="/login" />} />
             <Route path="/preview" element={isAuthenticated ? <Preview /> : <Navigate to="/login" />} />
