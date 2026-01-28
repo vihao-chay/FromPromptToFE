@@ -1,17 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 interface LoginPageProps {
     onLogin?: () => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
-    const navigate = useNavigate();
-
-    const handleDemoLogin = () => {
-        onLogin?.();
-        navigate('/dashboard');
-    };
-
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display transition-colors duration-300">
             {/* Top Navigation Bar (Simplified for Login) */}
@@ -47,7 +40,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     </div>
 
                     {/* Login Form */}
-                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                    <form className="space-y-5">
                         {/* Email Field */}
                         <div className="flex flex-col gap-2">
                             <label className="text-gray-900 dark:text-white text-sm font-medium leading-normal">Email Address</label>
@@ -79,13 +72,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                             Sign In
                         </button>
 
-                        {/* Demo Login Button */}
+                        {/* DEV ONLY: Bypass Login Button */}
                         <button
                             type="button"
-                            onClick={handleDemoLogin}
-                            className="w-full flex cursor-pointer items-center justify-center rounded-lg h-10 px-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold transition-all"
+                            onClick={onLogin}
+                            className="w-full flex cursor-pointer items-center justify-center rounded-lg h-10 px-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all"
                         >
-                            Demo Login
+                            ⚡ DEV: Quick Login (Bypass)
                         </button>
                     </form>
 
