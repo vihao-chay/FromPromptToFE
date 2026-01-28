@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import Profile from './pages/Profile';
 import Editor from './pages/Editor';
 import Preview from './pages/Preview';
 import GitHubStatus from './pages/GitHubStatus';
 import GitHubIntegration from './pages/GitHubIntegration';
-import ForgotPassword from './pages/ForgotPassword';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Simplified for demo
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
 
   return (
     <HashRouter>
@@ -19,8 +20,9 @@ const App: React.FC = () => {
         {isAuthenticated && <Navbar />}
         <main className="flex-1">
           <Routes>
-            <Route path="/login" element={<Login onLogin={() => setIsAuthenticated(true)} />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
             {/* Protected Routes Concept */}
             <Route path="/" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
