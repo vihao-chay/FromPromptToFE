@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import HomePage from './pages/HomePage';
-import Dashboard from './pages/Dashboard';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import Profile from './pages/Profile';
-import Editor from './pages/Editor';
-import Preview from './pages/Preview';
-import GitHubStatus from './pages/GitHubStatus';
-import GitHubIntegration from './pages/GitHubIntegration';
+import HomePage from './pages/Home/HomePage';
+import Dashboard from './pages/Dashboard/Dashboard';
+import LoginPage from './pages/Auth/LoginPage';
+import RegisterPage from './pages/Auth/RegisterPage';
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+import Profile from './pages/Dashboard/Profile';
+import Editor from './pages/Editor/Editor';
+import Preview from './pages/Editor/Preview';
+import GitHubStatus from './pages/Github/GitHubStatus';
+import GitHubIntegration from './pages/Github/GitHubIntegration';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
