@@ -1,35 +1,34 @@
 # ========================
-# Build results
-# ========================
-bin/
-obj/
-
-# ========================
-# Visual Studio
+# Visual Studio / IDE
 # ========================
 .vs/
+**/.vs/
+.idea/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
-
-# ========================
-# Rider
-# ========================
-.idea/
 *.sln.iml
 
 # ========================
-# ASP.NET Core
+# Build results (.NET)
+# ========================
+bin/
+obj/
+**/bin/
+**/obj/
+
+# ========================
+# ASP.NET Core secrets
 # ========================
 appsettings.Development.json
 appsettings.Local.json
 
 # ========================
-# Publish
+# Publish output
 # ========================
 publish/
-wwwroot/
+**/publish/
 
 # ========================
 # Logs

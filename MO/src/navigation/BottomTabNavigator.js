@@ -10,7 +10,7 @@ export default function BottomTabNavigator() {
     <Tab.Navigator>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="History" component={HistoryScreen} />
-      {/* <Tab.Screen name="Profile" component={ProfileScreen} /> */}
+      {/* <Tab.Screen name="Profile" component={ProfileScreen} . /> */}
     </Tab.Navigator>
   );
 }
