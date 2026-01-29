@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface LoginPageProps {
@@ -6,8 +7,26 @@ interface LoginPageProps {
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
     const navigate = useNavigate();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    const handleLogin = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (email === 'admin@gmail.com' && password === '123456') {
+            onLogin?.();
+            navigate('/dashboard');
+        } else {
+            setError('Invalid email or password. Try admin@gmail.com / 123456');
+        }
+    };
 
     const handleDemoLogin = () => {
+        // Auto-fill and login
+        setEmail('admin@gmail.com');
+        setPassword('123456');
         onLogin?.();
         navigate('/dashboard');
     };
@@ -46,12 +65,26 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         <p className="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal text-center">Enter your details to access your dashboard</p>
                     </div>
 
+                    {/* Error Message */}
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm rounded-lg text-center">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Login Form */}
-                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                    <form className="space-y-5" onSubmit={handleLogin}>
                         {/* Email Field */}
                         <div className="flex flex-col gap-2">
                             <label className="text-gray-900 dark:text-white text-sm font-medium leading-normal">Email Address</label>
-                            <input className="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-[#3b4354] bg-gray-50 dark:bg-[#111318] focus:border-primary h-12 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-4 text-sm transition-all" placeholder="name@university.edu" required type="email" />
+                            <input
+                                className="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-[#3b4354] bg-gray-50 dark:bg-[#111318] focus:border-primary h-12 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-4 text-sm transition-all"
+                                placeholder="user@gmail.com"
+                                required
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
                         </div>
 
                         {/* Password Field */}
@@ -61,7 +94,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                                 <Link to="/forgot-password" className="text-xs font-semibold text-primary hover:underline">Forgot password?</Link>
                             </div>
                             <div className="relative flex items-center">
-                                <input className="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-[#3b4354] bg-gray-50 dark:bg-[#111318] focus:border-primary h-12 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-4 text-sm transition-all" placeholder="••••••••" required type="password" />
+                                <input
+                                    className="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-[#3b4354] bg-gray-50 dark:bg-[#111318] focus:border-primary h-12 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-4 text-sm transition-all"
+                                    placeholder="••••••••"
+                                    required
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
                                 <button className="absolute right-3 text-gray-400 dark:text-[#9da6b9] hover:text-primary transition-colors" type="button">
                                     <span className="material-symbols-outlined text-[20px]">visibility</span>
                                 </button>
