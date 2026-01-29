@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ProjectStatus, Project, Activity } from '../types';
+import { ProjectStatus, Project, Activity } from '../../types';
 
 const Dashboard: React.FC = () => {
   const recentProjects: Project[] = [
@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
   ];
 
   const getStatusColor = (status: ProjectStatus) => {
-    switch(status) {
+    switch (status) {
       case ProjectStatus.ACTIVE: return 'bg-green-500/10 text-green-500 border-green-500/20';
       case ProjectStatus.DRAFT: return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
       case ProjectStatus.COMPLETED: return 'bg-primary/10 text-primary border-primary/20';
@@ -39,8 +39,8 @@ const Dashboard: React.FC = () => {
             Manage and generate your modern frontend components using AI. Select a project to continue building or start a fresh design.
           </p>
         </div>
-        <Link 
-          to="/editor" 
+        <Link
+          to="/editor"
           className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
         >
           <span className="material-symbols-outlined">add_circle</span>
@@ -69,8 +69,8 @@ const Dashboard: React.FC = () => {
         {recentProjects.map((project) => (
           <div key={project.id} className="group flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/5">
             <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-900">
-              <div 
-                className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105" 
+              <div
+                className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
                 style={{ backgroundImage: `url('${project.imageUrl}')` }}
               ></div>
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
