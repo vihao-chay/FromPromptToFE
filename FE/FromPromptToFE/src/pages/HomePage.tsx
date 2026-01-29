@@ -9,7 +9,7 @@ const HomePage = () => {
             <LiquidNavbar />
             <div className="absolute inset-0 z-0">
                 <DarkVeil
-                    hueShift={333}
+                    hueShift={0}
                     noiseIntensity={0}
                     scanlineIntensity={0}
                     speed={1}

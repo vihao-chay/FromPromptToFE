@@ -1,0 +1,6 @@
+@FromFromptToFE_HostAddress = http://localhost:5274
+
+GET {{FromFromptToFE_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
