@@ -137,7 +137,7 @@ const Profile: React.FC = () => {
             </div>
             <div className="p-8 border-t border-slate-100 dark:border-slate-800">
               <div className="flex flex-col gap-3">
-                <Link to="/" className="w-full h-12 flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-lg shadow-primary/20">
+                <Link to="/login" className="w-full h-12 flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-lg shadow-primary/20">
                   <span className="material-symbols-outlined">logout</span>
                   <span>Logout Account</span>
                 </Link>
