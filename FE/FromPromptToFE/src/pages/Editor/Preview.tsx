@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { generateCode } from '../services/geminiService';
+import { generateCode } from '../../services/geminiService';
 
 const Preview: React.FC = () => {
   const [generatedCode, setGeneratedCode] = useState<string>('// Generating code...');
@@ -10,7 +10,7 @@ const Preview: React.FC = () => {
   useEffect(() => {
     const ui = sessionStorage.getItem('last_ui_prompt') || 'A simple landing page';
     const schema = sessionStorage.getItem('last_schema_prompt') || '';
-    
+
     const triggerGen = async () => {
       const code = await generateCode(ui, schema);
       setGeneratedCode(code);
@@ -30,7 +30,7 @@ const Preview: React.FC = () => {
           </div>
           <h1 className="text-xl font-bold tracking-tight">Generated Code Preview</h1>
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${isGenerating ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'} border border-emerald-500/20 flex items-center gap-1`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></span> 
+            <span className={`w-1.5 h-1.5 rounded-full ${isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></span>
             {isGenerating ? 'Generating...' : 'Ready'}
           </span>
         </div>
@@ -54,13 +54,13 @@ const Preview: React.FC = () => {
         <section className="w-1/2 flex flex-col border-r border-slate-200 dark:border-border-dark bg-[#0d1117]">
           <div className="h-10 border-b border-slate-800 flex items-center justify-between px-4 bg-[#161b22] shrink-0">
             <div className="flex items-center gap-4 h-full">
-              <div 
+              <div
                 className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.tsx' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 onClick={() => setActiveFile('index.tsx')}
               >
                 <span className="material-symbols-outlined text-sm">code</span> index.tsx
               </div>
-              <div 
+              <div
                 className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'styles.css' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                 onClick={() => setActiveFile('styles.css')}
               >
@@ -85,8 +85,8 @@ const Preview: React.FC = () => {
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Edit with AI</h2>
             </div>
             <div className="flex-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl p-4 flex flex-col shadow-sm">
-              <textarea 
-                className="flex-1 bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 resize-none font-display text-base" 
+              <textarea
+                className="flex-1 bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 resize-none font-display text-base"
                 placeholder="E.g., 'Make the headline larger and change the button color to deep indigo...'"
               />
               <div className="mt-4 flex items-center justify-between">

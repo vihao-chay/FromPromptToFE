@@ -10,6 +10,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,12 +99,18 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                                     className="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-[#3b4354] bg-gray-50 dark:bg-[#111318] focus:border-primary h-12 placeholder:text-gray-400 dark:placeholder:text-[#9da6b9] px-4 text-sm transition-all"
                                     placeholder="••••••••"
                                     required
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
-                                <button className="absolute right-3 text-gray-400 dark:text-[#9da6b9] hover:text-primary transition-colors" type="button">
-                                    <span className="material-symbols-outlined text-[20px]">visibility</span>
+                                <button
+                                    className="absolute right-3 text-gray-400 dark:text-[#9da6b9] hover:text-primary transition-colors focus:outline-none pt-1.5"
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
                                 </button>
                             </div>
                         </div>
