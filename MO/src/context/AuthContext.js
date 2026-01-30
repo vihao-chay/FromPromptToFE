@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from "react";
+import { Alert } from "react-native";
 
 const AuthContext = createContext();
 
@@ -11,7 +12,11 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         // Simulate API call
         setTimeout(() => {
-            setUser({ email, name: "User" });
+            if (email.trim() === 'admin' && password === '12345') {
+                setUser({ email: email.trim(), name: "Admin User", role: 'admin' });
+            } else {
+                Alert.alert("Login Failed", "Invalid email or password. Try admin/12345");
+            }
             setIsLoading(false);
         }, 1000);
     };
