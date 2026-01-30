@@ -1,4 +1,4 @@
-
+using FromFromptToFE.Base;
 using FromFromptToFE.DTOs.Auth;
 using FromFromptToFE.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,12 +22,12 @@ namespace FromFromptToFE.Controllers
             try
             {
                 var user = await _authService.RegisterAsync(dto);
-                // In a real app, you would send an email with the verification token here
-                return Ok(new { message = "Registration successful. Please verify your email.", verifyToken = user.VerifyToken });
+                var responseData = new { verifyToken = user.VerifyToken };
+                return ResponseEntity<object>.Ok(responseData, "Đăng ký thành công. Vui lòng xác thực email của bạn.");
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ResponseEntity<object>.Fail(ex.Message);
             }
         }
 
@@ -37,9 +37,9 @@ namespace FromFromptToFE.Controllers
             var result = await _authService.VerifyEmailAsync(dto.Token);
             if (!result)
             {
-                return BadRequest(new { message = "Invalid token" });
+                return ResponseEntity<object>.Fail("Mã xác thực không hợp lệ");
             }
-            return Ok(new { message = "Email verified successfully" });
+            return ResponseEntity<object>.Ok(null, "Xác thực email thành công");
         }
 
         [HttpPost("login")]
@@ -50,13 +50,13 @@ namespace FromFromptToFE.Controllers
                 var response = await _authService.LoginAsync(dto);
                 if (response == null)
                 {
-                    return Unauthorized(new { message = "Invalid email or password" });
+                    return ResponseEntity<AuthResponseDto>.Fail("Email hoặc mật khẩu không chính xác", 401);
                 }
-                return Ok(response);
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập thành công");
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
             }
         }
 
@@ -66,11 +66,11 @@ namespace FromFromptToFE.Controllers
             try
             {
                 var response = await _authService.GoogleLoginAsync(dto.IdToken);
-                return Ok(response);
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập Google thành công");
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
             }
         }
     }

@@ -1,14 +1,9 @@
-
 using AutoMapper;
-using BCrypt.Net;
 using FromFromptToFE.DTOs.Auth;
 using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
+using FromFromptToFE.Helpers;
 using Google.Apis.Auth;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace FromFromptToFE.Services
 {
@@ -16,24 +11,24 @@ namespace FromFromptToFE.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
-        private readonly IConfiguration _configuration;
+        private readonly IJwtAuthService _jwtAuthService;
 
-        public AuthService(IUserRepository userRepository, IMapper mapper, IConfiguration configuration)
+        public AuthService(IUserRepository userRepository, IMapper mapper, IJwtAuthService jwtAuthService)
         {
             _userRepository = userRepository;
             _mapper = mapper;
-            _configuration = configuration;
+            _jwtAuthService = jwtAuthService;
         }
 
         public async Task<User> RegisterAsync(RegisterDto dto)
         {
             if (await _userRepository.GetByEmailAsync(dto.Email) != null)
             {
-                throw new Exception("Email already exists");
+                throw new Exception("Email đã tồn tại");
             }
 
             var user = _mapper.Map<User>(dto);
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            user.PasswordHash = PasswordHelper.HashPassword(dto.Password);
             user.VerifyToken = Guid.NewGuid().ToString("N");
             user.CreatedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
@@ -59,18 +54,20 @@ namespace FromFromptToFE.Services
         public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
         {
             var user = await _userRepository.GetByEmailAsync(dto.Email);
-            if (user == null || user.PasswordHash == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+            
+            // Allow login if password matches, using helper
+            if (user == null || string.IsNullOrEmpty(user.PasswordHash) || !PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
             {
                 return null;
             }
 
             if (user.IsVerified != true)
             {
-                throw new Exception("Account not verified");
+                throw new Exception("Tài khoản chưa được xác thực");
             }
 
             var response = _mapper.Map<AuthResponseDto>(user);
-            response.Token = GenerateJwtToken(user);
+            response.Token = _jwtAuthService.GenerateToken(user);
             
             return response;
         }
@@ -106,39 +103,13 @@ namespace FromFromptToFE.Services
                 }
 
                 var response = _mapper.Map<AuthResponseDto>(user);
-                response.Token = GenerateJwtToken(user);
+                response.Token = _jwtAuthService.GenerateToken(user);
                 return response;
             }
             catch (InvalidJwtException)
             {
-                throw new Exception("Invalid Google Token");
+                throw new Exception("Token Google không hợp lệ");
             }
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
-
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(7),
-                Issuer = jwtSettings["Issuer"],
-                Audience = jwtSettings["Audience"],
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
         }
     }
 }

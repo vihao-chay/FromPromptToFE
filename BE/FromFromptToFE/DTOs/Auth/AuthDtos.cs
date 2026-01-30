@@ -5,24 +5,22 @@ namespace FromFromptToFE.DTOs.Auth
 {
     public class RegisterDto
     {
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string Email { get; set; } = null!;
 
-        [Required]
-        [MinLength(6)]
+        [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
         public string Password { get; set; } = null!;
-
-        public string? Name { get; set; }
     }
 
     public class LoginDto
     {
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string Email { get; set; } = null!;
 
-        [Required]
+        [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
         public string Password { get; set; } = null!;
     }
 
