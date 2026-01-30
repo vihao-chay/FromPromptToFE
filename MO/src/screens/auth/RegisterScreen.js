@@ -8,6 +8,9 @@ import {
   ScrollView,
 } from "react-native";
 
+import Button from "../../components/Button";
+import Logo from "../../components/Logo";
+
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -16,6 +19,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Logo style={styles.logo} />
       <Text style={styles.title}>Create an Account</Text>
       <Text style={styles.subtitle}>
         Start generating frontend code with AI.
@@ -60,17 +64,18 @@ export default function RegisterScreen({ navigation }) {
           onChangeText={setConfirmPassword}
         />
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
+        <Button
+          title="Create Account"
+          onPress={() => { }} // Add logic if needed
+          style={styles.button}
+        />
 
-        <TouchableOpacity
+        <Button
+          title="Already have an account? Login"
+          variant="link"
           onPress={() => navigation.navigate("Login")}
-        >
-          <Text style={styles.loginText}>
-            Already have an account? Login
-          </Text>
-        </TouchableOpacity>
+          textStyle={styles.loginText}
+        />
       </View>
     </ScrollView>
   );
@@ -88,6 +93,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
     textAlign: "center",
+  },
+  logo: {
+    marginBottom: 30,
+    alignSelf: "center",
   },
   subtitle: {
     textAlign: "center",
@@ -112,14 +121,6 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 20,
-    backgroundColor: "#1d63ed",
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
   },
   loginText: {
     marginTop: 20,

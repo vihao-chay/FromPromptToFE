@@ -7,6 +7,8 @@ import {
     StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Button from "../../components/Button";
+import Logo from "../../components/Logo";
 
 export default function ForgotPasswordScreen({ navigation }) {
     const [email, setEmail] = useState("");
@@ -23,14 +25,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.logoContainer}>
-                    <View style={styles.logoBox}>
-                        <Text style={styles.logoText}>A</Text>
-                    </View>
-                    <Text style={styles.appName}>
-                        AI CodeGen
-                    </Text>
-                </View>
+                <Logo />
 
                 <TouchableOpacity onPress={() => navigation.navigate("Login")}>
                     <Text style={styles.loginLink}>
@@ -78,14 +73,11 @@ export default function ForgotPasswordScreen({ navigation }) {
                                 style={styles.input}
                             />
 
-                            <TouchableOpacity
+                            <Button
+                                title="Send Reset Link"
                                 onPress={handleReset}
                                 style={styles.resetButton}
-                            >
-                                <Text style={styles.resetButtonText}>
-                                    Send Reset Link
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         </>
                     )}
 
@@ -94,11 +86,12 @@ export default function ForgotPasswordScreen({ navigation }) {
                         <Text style={styles.footerText}>
                             Remembered your password?
                         </Text>
-                        <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                            <Text style={styles.footerLink}>
-                                Go back to login
-                            </Text>
-                        </TouchableOpacity>
+                        <Button
+                            title="Go back to login"
+                            variant="link"
+                            onPress={() => navigation.navigate("Login")}
+                            textStyle={styles.footerLink}
+                        />
                     </View>
                 </View>
             </View>
@@ -117,28 +110,6 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         paddingVertical: 16,
-    },
-    logoContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    logoBox: {
-        width: 32,
-        height: 32,
-        backgroundColor: "#2563eb", // blue-600
-        borderRadius: 4,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 8,
-    },
-    logoText: {
-        color: "white",
-        fontWeight: "bold",
-    },
-    appName: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "white",
     },
     loginLink: {
         fontSize: 14,
@@ -202,14 +173,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     resetButton: {
-        backgroundColor: "#2563eb", // blue-600
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: "center",
-    },
-    resetButtonText: {
-        color: "white",
-        fontWeight: "600",
+        marginTop: 10,
     },
     footer: {
         marginTop: 32,

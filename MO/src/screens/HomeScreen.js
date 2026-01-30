@@ -8,8 +8,12 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Header from "../components/Header";
+import Button from "../components/Button";
+import { useAuth } from "../context/AuthContext";
 
 export default function HomeScreen({ navigation }) {
+  const { user, logout } = useAuth();
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -26,17 +30,18 @@ export default function HomeScreen({ navigation }) {
           interfaces at the speed of thought.
         </Text>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("Login")}
-        >
-          <LinearGradient
-            colors={["#3B82F6", "#2563EB"]}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>Get Started</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <Button
+          title={user ? "Logout" : "Get Started"}
+          variant="gradient"
+          onPress={() => {
+            if (user) {
+              logout();
+            } else {
+              navigation.navigate("Login");
+            }
+          }}
+          style={styles.button}
+        />
 
         <Text style={styles.smallText}>
           NO CREDIT CARD REQUIRED
@@ -84,15 +89,6 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 40,
     width: 260,
-    height: 60,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 17,
-    fontWeight: "600",
   },
   smallText: {
     marginTop: 16,
