@@ -1,6 +1,6 @@
-import Footer from "../components/Footer";
-import DarkVeil from "../components/ui/DarkVeil"
-import LiquidNavbar from "../components/ui/LiquidNavbar"
+import Footer from "../../components/Footer";
+import DarkVeil from "../../components/ui/DarkVeil"
+import LiquidNavbar from "../../components/ui/LiquidNavbar"
 import { Link } from 'react-router-dom';
 
 const HomePage = () => {
@@ -9,7 +9,7 @@ const HomePage = () => {
             <LiquidNavbar />
             <div className="absolute inset-0 z-0">
                 <DarkVeil
-                    hueShift={333}
+                    hueShift={0}
                     noiseIntensity={0}
                     scanlineIntensity={0}
                     speed={1}
