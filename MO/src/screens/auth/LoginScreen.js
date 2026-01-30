@@ -9,6 +9,8 @@ import {
 } from "react-native";
 
 import { useAuth } from "../../context/AuthContext";
+import Button from "../../components/Button";
+import Logo from "../../components/Logo";
 
 export default function LoginScreen({ navigation }) {
     const { login, isLoading } = useAuth();
@@ -17,6 +19,7 @@ export default function LoginScreen({ navigation }) {
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
+            <Logo style={styles.logo} />
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
                 Enter your details to access your dashboard
@@ -42,19 +45,20 @@ export default function LoginScreen({ navigation }) {
                     onChangeText={setPassword}
                 />
 
-                <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
+                <Button
+                    title="Forgot Password?"
+                    variant="link"
+                    onPress={() => navigation.navigate("ForgotPassword")}
+                    style={styles.forgotPasswordButton}
+                    textStyle={styles.forgotPasswordText}
+                />
 
-                <TouchableOpacity
-                    style={styles.signInButton}
+                <Button
+                    title={isLoading ? "Signing in..." : "Sign In"}
                     onPress={() => login(email, password)}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.signInText}>
-                        {isLoading ? "Signing in..." : "Sign In"}
-                    </Text>
-                </TouchableOpacity>
+                    loading={isLoading}
+                    style={styles.signInButton}
+                />
             </View>
 
             <Text style={styles.signupText}>
@@ -77,6 +81,10 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         color: "white",
         textAlign: "center",
+    },
+    logo: {
+        marginBottom: 30,
+        alignSelf: "center",
     },
     subtitle: {
         textAlign: "center",
@@ -101,14 +109,6 @@ const styles = StyleSheet.create({
     },
     signInButton: {
         marginTop: 20,
-        backgroundColor: "#2563eb",
-        padding: 15,
-        borderRadius: 12,
-        alignItems: "center",
-    },
-    signInText: {
-        color: "white",
-        fontWeight: "bold",
     },
     signupText: {
         marginTop: 30,
@@ -119,10 +119,12 @@ const styles = StyleSheet.create({
         color: "#2563eb",
         fontWeight: "bold",
     },
+    forgotPasswordButton: {
+        alignSelf: 'flex-end',
+        marginTop: 10,
+    },
     forgotPasswordText: {
         color: "#2563eb",
-        textAlign: "right",
-        marginTop: 10,
         fontWeight: "600",
     },
 });
