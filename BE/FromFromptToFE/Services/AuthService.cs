@@ -12,12 +12,18 @@ namespace FromFromptToFE.Services
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
         private readonly IJwtAuthService _jwtAuthService;
+        private readonly IEmailService _emailService;
 
-        public AuthService(IUserRepository userRepository, IMapper mapper, IJwtAuthService jwtAuthService)
+        public AuthService(
+            IUserRepository userRepository, 
+            IMapper mapper, 
+            IJwtAuthService jwtAuthService,
+            IEmailService emailService)
         {
             _userRepository = userRepository;
             _mapper = mapper;
             _jwtAuthService = jwtAuthService;
+            _emailService = emailService;
         }
 
         public async Task<User> RegisterAsync(RegisterDto dto)
@@ -34,6 +40,21 @@ namespace FromFromptToFE.Services
             user.UpdatedAt = DateTime.UtcNow;
 
             await _userRepository.AddAsync(user);
+
+            // Gửi email verification
+            try
+            {
+                await _emailService.SendVerificationEmailAsync(
+                    user.Email,
+                    user.Name ?? "User",
+                    user.VerifyToken
+                );
+            }
+            catch (Exception ex)
+            {
+                // Log error nhưng vẫn return success vì user đã được tạo
+                Console.WriteLine($"Warning: Failed to send verification email: {ex.Message}");
+            }
 
             return user;
         }
