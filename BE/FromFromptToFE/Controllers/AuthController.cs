@@ -1,7 +1,9 @@
 using FromFromptToFE.Base;
 using FromFromptToFE.DTOs.Auth;
 using FromFromptToFE.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace FromFromptToFE.Controllers
 {
@@ -67,6 +69,110 @@ namespace FromFromptToFE.Controllers
             {
                 var response = await _authService.GoogleLoginAsync(dto.IdToken);
                 return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập Google thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
+            }
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            try
+            {
+                await _authService.ForgotPasswordAsync(dto);
+                return ResponseEntity<object>.Ok(null, "Nếu email tồn tại, một liên kết đặt lại mật khẩu đã được gửi.");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            try
+            {
+                var result = await _authService.ResetPasswordAsync(dto);
+                if (!result)
+                {
+                    return ResponseEntity<object>.Fail("Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+                }
+                return ResponseEntity<object>.Ok(null, "Đặt lại mật khẩu thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (userIdClaim == null) return Unauthorized();
+
+                var result = await _authService.ChangePasswordAsync(Guid.Parse(userIdClaim), dto);
+                if (!result) return ResponseEntity<object>.Fail("Không tìm thấy người dùng");
+
+                return ResponseEntity<object>.Ok(null, "Đổi mật khẩu thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMe()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (userIdClaim == null) return Unauthorized();
+
+                var user = await _authService.GetCurrentUserAsync(Guid.Parse(userIdClaim));
+                if (user == null) return Unauthorized();
+
+                return ResponseEntity<UserDto>.Ok(user, "Lấy thông tin người dùng thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<UserDto>.Fail(ex.Message);
+            }
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationDto dto)
+        {
+            try
+            {
+                await _authService.ResendVerificationEmailAsync(dto);
+                return ResponseEntity<object>.Ok(null, "Đã gửi lại email xác thực thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            try
+            {
+                var response = await _authService.RefreshTokenAsync(dto);
+                if (response == null)
+                {
+                    return ResponseEntity<AuthResponseDto>.Fail("Refresh token không hợp lệ hoặc đã hết hạn", 401);
+                }
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Làm mới token thành công");
             }
             catch (Exception ex)
             {

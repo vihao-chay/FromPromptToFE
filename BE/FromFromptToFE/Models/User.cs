@@ -16,6 +16,14 @@ public partial class User
     public bool? IsVerified { get; set; }
 
     public string? VerifyToken { get; set; }
+    
+    public string? ResetToken { get; set; }
+
+    public DateTime? ResetTokenExpires { get; set; }
+
+    public string? RefreshToken { get; set; }
+
+    public DateTime? RefreshTokenExpires { get; set; }
 
     public string? GoogleId { get; set; }
 

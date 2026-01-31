@@ -440,6 +440,18 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.VerifyToken)
                 .HasColumnType("character varying")
                 .HasColumnName("verify_token");
+            entity.Property(e => e.ResetToken)
+                .HasColumnType("character varying")
+                .HasColumnName("reset_token");
+            entity.Property(e => e.ResetTokenExpires)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("reset_token_expires");
+            entity.Property(e => e.RefreshToken)
+                .HasColumnType("character varying")
+                .HasColumnName("refresh_token");
+            entity.Property(e => e.RefreshTokenExpires)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("refresh_token_expires");
         });
 
         OnModelCreatingPartial(modelBuilder);

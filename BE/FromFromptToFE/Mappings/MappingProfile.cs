@@ -13,8 +13,9 @@ namespace FromFromptToFE.Mappings
                 .ForMember(dest => dest.Provider, opt => opt.MapFrom(src => "local"))
                 .ForMember(dest => dest.IsVerified, opt => opt.MapFrom(src => false));
 
-            CreateMap<User, AuthResponseDto>()
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name ?? src.Email));
+            CreateMap<User, AuthResponseDto>();
+
+            CreateMap<User, UserDto>();
         }
     }
 }

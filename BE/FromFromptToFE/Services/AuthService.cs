@@ -87,9 +87,19 @@ namespace FromFromptToFE.Services
                 throw new Exception("Tài khoản chưa được xác thực");
             }
 
+            var roles = await _userRepository.GetRolesAsync(user.Id);
+            var role = roles.FirstOrDefault() ?? "User";
+
             var response = _mapper.Map<AuthResponseDto>(user);
-            response.Token = _jwtAuthService.GenerateToken(user);
+            response.Role = role;
+            response.Token = _jwtAuthService.GenerateToken(user, role);
+            response.RefreshToken = _jwtAuthService.GenerateRefreshToken();
             
+            user.RefreshToken = response.RefreshToken;
+            user.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+
             return response;
         }
 
@@ -123,14 +133,124 @@ namespace FromFromptToFE.Services
                     await _userRepository.UpdateAsync(user);
                 }
 
+                var roles = await _userRepository.GetRolesAsync(user.Id);
+                var role = roles.FirstOrDefault() ?? "User";
+
                 var response = _mapper.Map<AuthResponseDto>(user);
-                response.Token = _jwtAuthService.GenerateToken(user);
+                response.Role = role;
+                response.Token = _jwtAuthService.GenerateToken(user, role);
+                response.RefreshToken = _jwtAuthService.GenerateRefreshToken();
+
+                user.RefreshToken = response.RefreshToken;
+                user.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+
                 return response;
             }
             catch (InvalidJwtException)
             {
                 throw new Exception("Token Google không hợp lệ");
             }
+        }
+
+        public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            var user = await _userRepository.GetByEmailAsync(dto.Email);
+            if (user == null) return; // Bảo mật: không báo lỗi nếu email không tồn tại
+
+            user.ResetToken = Guid.NewGuid().ToString("N");
+            user.ResetTokenExpires = DateTime.UtcNow.AddHours(1);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateAsync(user);
+
+            await _emailService.SendPasswordResetEmailAsync(user.Email, user.Name ?? "User", user.ResetToken);
+        }
+
+        public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            var user = await _userRepository.GetByResetTokenAsync(dto.Token);
+            if (user == null || user.ResetTokenExpires < DateTime.UtcNow)
+            {
+                return false;
+            }
+
+            user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
+            user.ResetToken = null;
+            user.ResetTokenExpires = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateAsync(user);
+            return true;
+        }
+
+        public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.PasswordHash))
+            {
+                return false;
+            }
+
+            if (!PasswordHelper.VerifyPassword(dto.OldPassword, user.PasswordHash))
+            {
+                throw new Exception("Mật khẩu cũ không chính xác");
+            }
+
+            user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateAsync(user);
+            return true;
+        }
+
+        public async Task<UserDto?> GetCurrentUserAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return null;
+
+            return _mapper.Map<UserDto>(user);
+        }
+
+        public async Task ResendVerificationEmailAsync(ResendVerificationDto dto)
+        {
+            var user = await _userRepository.GetByEmailAsync(dto.Email);
+            if (user == null || user.IsVerified == true)
+            {
+                throw new Exception("Email không hợp lệ hoặc tài khoản đã được xác thực");
+            }
+
+            user.VerifyToken = Guid.NewGuid().ToString("N");
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateAsync(user);
+
+            await _emailService.SendVerificationEmailAsync(user.Email, user.Name ?? "User", user.VerifyToken);
+        }
+
+        public async Task<AuthResponseDto?> RefreshTokenAsync(RefreshTokenDto dto)
+        {
+            var user = await _userRepository.GetByRefreshTokenAsync(dto.RefreshToken);
+            if (user == null || user.RefreshTokenExpires < DateTime.UtcNow)
+            {
+                return null;
+            }
+
+            var roles = await _userRepository.GetRolesAsync(user.Id);
+            var role = roles.FirstOrDefault() ?? "User";
+
+            var response = _mapper.Map<AuthResponseDto>(user);
+            response.Role = role;
+            response.Token = _jwtAuthService.GenerateToken(user, role);
+            response.RefreshToken = _jwtAuthService.GenerateRefreshToken();
+
+            user.RefreshToken = response.RefreshToken;
+            user.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+
+            return response;
         }
     }
 }

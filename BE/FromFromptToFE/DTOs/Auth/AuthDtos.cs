@@ -14,6 +14,13 @@ namespace FromFromptToFE.DTOs.Auth
         public string Password { get; set; } = null!;
     }
 
+    public class ResendVerificationDto
+    {
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string Email { get; set; } = null!;
+    }
+
     public class LoginDto
     {
         [Required(ErrorMessage = "Email là bắt buộc")]
@@ -36,10 +43,52 @@ namespace FromFromptToFE.DTOs.Auth
         public string IdToken { get; set; } = null!;
     }
 
+    public class ForgotPasswordDto
+    {
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string Email { get; set; } = null!;
+    }
+
+    public class ResetPasswordDto
+    {
+        [Required]
+        public string Token { get; set; } = null!;
+
+        [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+        public string NewPassword { get; set; } = null!;
+    }
+
+    public class ChangePasswordDto
+    {
+        [Required(ErrorMessage = "Mật khẩu cũ là bắt buộc")]
+        public string OldPassword { get; set; } = null!;
+
+        [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+        public string NewPassword { get; set; } = null!;
+    }
+
+    public class UserDto
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = null!;
+        public string? Name { get; set; }
+        public string? AvatarUrl { get; set; }
+    }
+
+    public class RefreshTokenDto
+    {
+        [Required]
+        public string RefreshToken { get; set; } = null!;
+    }
+
     public class AuthResponseDto
     {
         public string Token { get; set; } = null!;
+        public string RefreshToken { get; set; } = null!;
         public string Email { get; set; } = null!;
-        public string Name { get; set; } = null!;
+        public string Role { get; set; } = null!;
     }
 }

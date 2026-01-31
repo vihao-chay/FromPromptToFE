@@ -20,5 +20,23 @@ namespace FromFromptToFE.Repositories
         {
             return await _dbSet.FirstOrDefaultAsync(u => u.VerifyToken == token);
         }
+
+        public async Task<User?> GetByResetTokenAsync(string token)
+        {
+            return await _dbSet.FirstOrDefaultAsync(u => u.ResetToken == token);
+        }
+
+        public async Task<User?> GetByRefreshTokenAsync(string token)
+        {
+            return await _dbSet.FirstOrDefaultAsync(u => u.RefreshToken == token);
+        }
+
+        public async Task<List<string>> GetRolesAsync(Guid userId)
+        {
+            return await _context.OrganizationMembers
+                .Where(om => om.UserId == userId)
+                .Select(om => om.Role)
+                .ToListAsync();
+        }
     }
 }
