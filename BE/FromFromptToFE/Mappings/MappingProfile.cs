@@ -1,6 +1,7 @@
 
 using AutoMapper;
 using FromFromptToFE.DTOs.Auth;
+using FromFromptToFE.DTOs;
 using FromFromptToFE.Models;
 
 namespace FromFromptToFE.Mappings
@@ -16,6 +17,11 @@ namespace FromFromptToFE.Mappings
             CreateMap<User, AuthResponseDto>();
 
             CreateMap<User, UserDto>();
+
+            CreateMap<Organization, OrganizationDto>();
+            CreateMap<CreateOrganizationDto, Organization>();
+            CreateMap<UpdateOrganizationDto, Organization>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
         }
     }
 }
