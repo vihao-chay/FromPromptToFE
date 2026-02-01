@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+
+import authService from '@/src/services/authService';
 
 interface LoginPageProps {
     onLogin?: () => void;
@@ -12,25 +13,40 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setIsLoading(true);
 
-        if (email === 'admin@gmail.com' && password === '123456') {
-            onLogin?.();
-            navigate('/dashboard');
-        } else {
-            setError('Invalid email or password. Try admin@gmail.com / 123456');
+        try {
+            const response = await authService.login(email, password);
+            console.log("Data user:", response.data);
+            const token = response.data.content?.token;
+
+            if (token) {
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(response.data.content)); // Save user info if needed
+                onLogin?.();
+                navigate('/dashboard');
+            } else {
+                console.warn("Token not found in expected location:", response.data);
+                setError('Login succeeded but failed to retrieve token.');
+            }
+        } catch (err: any) {
+            console.error("Login error", err);
+            // Handle error response safely
+            const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please check your credentials.';
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleDemoLogin = () => {
-        // Auto-fill and login
-        setEmail('admin@gmail.com');
+    const handleDemoLogin = async () => {
+        setEmail('test01@gmail.com');
         setPassword('123456');
-        onLogin?.();
-        navigate('/dashboard');
     };
 
     return (
@@ -75,7 +91,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     )}
 
                     {/* Login Form */}
-                    <form className="space-y-5">
+
                     <form className="space-y-5" onSubmit={handleLogin}>
                         {/* Email Field */}
                         <div className="flex flex-col gap-2">
@@ -124,17 +140,23 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         </div>
 
                         {/* Action Button */}
-                        <button className="w-full flex cursor-pointer items-center justify-center rounded-lg h-12 px-4 bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all shadow-lg shadow-primary/20" type="submit">
-                            Sign In
+                        {/* Action Button */}
+                        <button
+                            className={`w-full flex cursor-pointer items-center justify-center rounded-lg h-12 px-4 bg-primary hover:bg-primary/90 text-white text-base font-bold transition-all shadow-lg shadow-primary/20 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            type="submit"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 'Signing in...' : 'Sign In'}
                         </button>
 
                         {/* DEV ONLY: Bypass Login Button */}
+                        {/* DEV ONLY: Auto-fill Button */}
                         <button
                             type="button"
-                            onClick={onLogin}
+                            onClick={handleDemoLogin}
                             className="w-full flex cursor-pointer items-center justify-center rounded-lg h-10 px-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all"
                         >
-                            ⚡ DEV: Quick Login (Bypass)
+                            ⚡ DEV: Auto-fill Demo Creds
                         </button>
                     </form>
 
