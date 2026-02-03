@@ -19,6 +19,10 @@ const LiquidNavbar = () => {
                         Login
                         <span className="absolute -bottom-1 left-1/2 w-0 h-0.5 bg-white -translate-x-1/2 transition-all duration-300 group-hover:w-full"></span>
                     </Link>
+                    <Link to="/register" className="relative group text-neutral-200 hover:text-white transition-colors text-sm font-medium">
+                        Register
+                        <span className="absolute -bottom-1 left-1/2 w-0 h-0.5 bg-white -translate-x-1/2 transition-all duration-300 group-hover:w-full"></span>
+                    </Link>
                 </div>
             </div>
         </nav>
