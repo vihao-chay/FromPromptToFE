@@ -5,9 +5,9 @@ import AuthNavigator from "./AuthNavigator";
 import MainNavigator from "./MainNavigator";
 
 export default function RootNavigator() {
-    const { user, isLoading } = useAuth();
+    const { user, isSplashLoading } = useAuth();
 
-    if (isLoading) {
+    if (isSplashLoading) {
         return (
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                 <ActivityIndicator size="large" />
@@ -15,5 +15,5 @@ export default function RootNavigator() {
         );
     }
 
-    return user ? <MainNavigator /> : <AuthNavigator />;
+    return user ? <MainNavigator key="main" /> : <AuthNavigator key="auth" />;
 }
