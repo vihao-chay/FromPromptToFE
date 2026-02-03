@@ -37,6 +37,13 @@ export default function RegisterPage() {
             console.log("Register success", response.data);
 
             if (response.data.success) {
+                // Auto-fill token if available
+                if (response.data.content && response.data.content.token) {
+                    setVerificationToken(response.data.content.token);
+                } else if (response.data.token) {
+                    setVerificationToken(response.data.token);
+                }
+
                 // Show verification modal instead of immediate redirect
                 setShowVerifyModal(true);
             } else {
