@@ -1,9 +1,63 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ProjectStatus, Project, Activity } from '../../types';
+import organizationService from '../../services/organizationService';
+
+interface Organization {
+  id: string;
+  name: string;
+  plan?: string;
+  memberCount?: number;
+}
+
+const ICON_STYLES = [
+  { icon: "school", iconBg: "bg-indigo-100 dark:bg-indigo-900/30", iconColor: "text-indigo-600 dark:text-indigo-400" },
+  { icon: "rocket_launch", iconBg: "bg-pink-100 dark:bg-pink-900/30", iconColor: "text-pink-600 dark:text-pink-400" },
+  { icon: "code", iconBg: "bg-teal-100 dark:bg-teal-900/30", iconColor: "text-teal-600 dark:text-teal-400" },
+  { icon: "design_services", iconBg: "bg-orange-100 dark:bg-orange-900/30", iconColor: "text-orange-600 dark:text-orange-400" },
+  { icon: "work", iconBg: "bg-purple-100 dark:bg-purple-900/30", iconColor: "text-purple-600 dark:text-purple-400" },
+  { icon: "groups", iconBg: "bg-cyan-100 dark:bg-cyan-900/30", iconColor: "text-cyan-600 dark:text-cyan-400" },
+];
 
 const Dashboard: React.FC = () => {
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 4;
+
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const response = await organizationService.getAll();
+        console.log(response.data);
+        const items = response.data?.content?.totalItems || [];
+        setOrganizations(items);
+      } catch (error) {
+        console.error('Error fetching organizations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrganizations();
+  }, []);
+
+  const totalPages = Math.ceil(organizations.length / itemsPerPage);
+  const displayedOrganizations = organizations.slice(
+    currentPage * itemsPerPage,
+    (currentPage + 1) * itemsPerPage
+  );
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
+  };
+
+  const getIconStyle = (index: number) => ICON_STYLES[index % ICON_STYLES.length];
+
   const recentProjects: Project[] = [
     { id: '1', name: 'SaaS Dashboard', status: ProjectStatus.ACTIVE, createdAt: 'Oct 24, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFZ15yGEJzDjxuKMNX9N5WwzSFdseT3DP7WBeaauRuaI29RWgupqcioIhdzxjnzpgsDnZawZjpBpFzwpl_5Dp_LUXN8qJBBXcRFzaJzxa5ImuGVYbo8LU69IZt1sOp-YD0o9p19ul8Dl2D38J0jBay1FeM1lc9pWTz89BFq8in84epk2fnPOEU40QbXBf13E9WCvBK6ITRk9zC9fNnCahf0GdkpeI0NkJeu6vZphd9n2aOGSj0lZypnJFAEv1sPJb5Bm4vaPr0p7NX' },
     { id: '2', name: 'E-commerce Page', status: ProjectStatus.DRAFT, createdAt: 'Oct 20, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCA6qhKIZZKzSPjdMRDeOG3MI1q2RjqK0TJVfItimhb2FJ1pXC8OAxdWMdYVRwf13r3V7edqhSeUCzzFRIYhnIqxXGP-ejjIuU_xbuSkbUEWDLlbXlvD9v6ScuwhLTKCBTC960vop_2ouchY65F9Ikk7KXe4ojjs9DDbUUNgr9LXPQEtgBY8vJ798pdYfLjq9Osjet9M5RUHLh3irq15aaiYXRBZffPL2oLYr46gj9I5J7tmsy9V01iXJ1zO9MbwtVgjUhm5W_gGQxE' },
@@ -39,16 +93,93 @@ const Dashboard: React.FC = () => {
             Manage and generate your modern frontend components using AI. Select a project to continue building or start a fresh design.
           </p>
         </div>
-        <Link
-          to="/editor"
-          className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
-        >
-          <span className="material-symbols-outlined">add_circle</span>
-          <span>Create New Project</span>
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link
+            to="/new-organization"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined">group_add </span>
+            <span>Create Organization</span>
+          </Link>
+          <Link
+            to="/editor"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined">add_circle</span>
+            <span>Create New Project</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Section Header */}
+      <div className="mb-12">
+        {/* Section Header Organizations*/}
+        <h3 className="text-xl font-bold flex items-center gap-2 mb-6 text-slate-900 dark:text-white">
+          <span className="material-symbols-outlined text-primary">groups</span>
+          My Organizations
+        </h3>
+
+        {/* Organization Grid */}
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span>
+          </div>
+        ) : organizations.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+            No organizations found. Create your first organization!
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {displayedOrganizations.map((org, index) => {
+                const iconStyle = getIconStyle(currentPage * itemsPerPage + index);
+                return (
+                  <div key={org.id} className="group flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconStyle.iconBg} ${iconStyle.iconColor}`}>
+                      <span className="material-symbols-outlined">{iconStyle.icon}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{org.name}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{org.memberCount ?? 0} members</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination Arrows */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-6">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 0}
+                  className={`p-2 rounded-lg border transition-all ${currentPage === 0
+                    ? 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                    : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-primary/50'
+                    }`}
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  {currentPage + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages - 1}
+                  className={`p-2 rounded-lg border transition-all ${currentPage === totalPages - 1
+                    ? 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                    : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-primary/50'
+                    }`}
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+
+      {/* Section Header Projects*/}
       <div className="flex items-center justify-between mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
         <h3 className="text-xl font-bold flex items-center gap-2 font-display">
           <span className="material-symbols-outlined text-primary">grid_view</span>
