@@ -11,7 +11,7 @@ namespace FromFromptToFE.Services
         Task<AuthResponseDto?> LoginAsync(LoginDto dto);
         Task<AuthResponseDto> GoogleLoginAsync(string idToken);
         Task ForgotPasswordAsync(ForgotPasswordDto dto);
-        Task<bool> ResetPasswordAsync(ResetPasswordDto dto);
+        Task<AuthResponseDto?> ResetPasswordAsync(ResetPasswordDto dto);
         Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
         Task<UserDto?> GetCurrentUserAsync(Guid userId);
         Task ResendVerificationEmailAsync(ResendVerificationDto dto);

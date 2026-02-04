@@ -3,192 +3,309 @@ import {
     View,
     Text,
     TextInput,
-    TouchableOpacity,
     StyleSheet,
+    ScrollView,
+    Modal,
+    ActivityIndicator,
+    TouchableOpacity,
+    Keyboard,
+    TouchableWithoutFeedback
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
 import Button from "../../components/Button";
 import Logo from "../../components/Logo";
+import { forgotPassword, resetPassword } from "../../services/authService";
+import { useToast } from "../../context/ToastContext";
 
 export default function ForgotPasswordScreen({ navigation }) {
     const [email, setEmail] = useState("");
-    const [success, setSuccess] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleReset = () => {
-        setTimeout(() => {
-            setSuccess(true);
-        }, 800);
+    // Modal State
+    const [showVerifyModal, setShowVerifyModal] = useState(false);
+    const [token, setToken] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [isResetting, setIsResetting] = useState(false);
+
+    const { showToast } = useToast();
+
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const handleSendResetLink = async () => {
+        // 1. Validate Empty
+        if (!email || email.trim() === "") {
+            showToast("Please enter your email", "error");
+            return;
+        }
+
+        // 2. Validate Format
+        if (!isValidEmail(email)) {
+            showToast("Please enter a valid email address", "error");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await forgotPassword(email);
+            // On success, show the verification modal
+            setShowVerifyModal(true);
+            showToast("Reset link sent! Check your email.", "success");
+        } catch (error) {
+            console.error(error);
+            showToast(error.message || "Failed to send reset link", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        if (!token || !newPassword || !confirmPassword) {
+            showToast("Please fill in all fields", "error");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            showToast("Passwords do not match", "error");
+            return;
+        }
+
+        setIsResetting(true);
+        try {
+            await resetPassword(token, newPassword);
+            setShowVerifyModal(false);
+            showToast("Password reset successful! Please login.", "success");
+            navigation.navigate("Login");
+        } catch (error) {
+            showToast(error.message || "Reset failed", "error");
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowVerifyModal(false);
+        setToken("");
+        setNewPassword("");
+        setConfirmPassword("");
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.container}>
+            <Logo style={styles.logo} />
+            <Text style={styles.title}>Forgot Password?</Text>
+            <Text style={styles.subtitle}>
+                Enter your email address and we'll send you a link to reset your password.
+            </Text>
 
-            {/* Header */}
-            <View style={styles.header}>
-                <Logo />
+            <View style={styles.card}>
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="name@university.edu"
+                    placeholderTextColor="#94a3b8"
+                    style={styles.input}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                />
 
-                <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                    <Text style={styles.loginLink}>
-                        Login
-                    </Text>
-                </TouchableOpacity>
+                <Button
+                    title={isLoading ? "Sending..." : "Send Reset Link"}
+                    onPress={handleSendResetLink}
+                    loading={isLoading}
+                    style={styles.button}
+                />
+
+                <Button
+                    title="Remembered your password? Login"
+                    variant="link"
+                    onPress={() => navigation.navigate("Login")}
+                    textStyle={styles.loginText}
+                />
             </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-                <View style={styles.titleContainer}>
-                    <Text style={styles.title}>
-                        Forgot Password?
-                    </Text>
-                    <Text style={styles.subtitle}>
-                        Enter your email address and we'll send you a link to reset your password.
-                    </Text>
-                </View>
-
-                <View style={styles.card}>
-
-                    {/* Success Message */}
-                    {success && (
-                        <View style={styles.successBox}>
-                            <Text style={styles.successTitle}>
-                                Check your email
+            {/* VERIFY / RESET MODAL */}
+            <Modal
+                visible={showVerifyModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={handleCloseModal}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <MaterialIcons name="mark-email-read" size={48} color="#3b82f6" style={{ marginBottom: 16 }} />
+                            <Text style={styles.modalTitle}>Check Your Email</Text>
+                            <Text style={styles.modalText}>
+                                We've sent a verification code to <Text style={{ fontWeight: 'bold', color: 'white' }}>{email}</Text>.
+                                {'\n'}Please enter it below to reset your password.
                             </Text>
-                            <Text style={styles.successText}>
-                                We've sent a password reset link to your inbox.
-                            </Text>
+
+                            <ScrollView style={{ width: '100%' }}>
+                                <TextInput
+                                    style={styles.tokenInput}
+                                    placeholder="Paste verification code here"
+                                    placeholderTextColor="#64748b"
+                                    value={token}
+                                    onChangeText={setToken}
+                                    autoCapitalize="none"
+                                />
+
+                                <Text style={styles.modalLabel}>New Password</Text>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    placeholder="Enter new password"
+                                    placeholderTextColor="#64748b"
+                                    secureTextEntry
+                                    value={newPassword}
+                                    onChangeText={setNewPassword}
+                                />
+
+                                <Text style={styles.modalLabel}>Confirm Password</Text>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    placeholder="Confirm new password"
+                                    placeholderTextColor="#64748b"
+                                    secureTextEntry
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                />
+
+                                <Button
+                                    title={isResetting ? "Resetting..." : "Reset Password"}
+                                    onPress={handleResetPassword}
+                                    loading={isResetting}
+                                    style={{ marginTop: 20, marginBottom: 12 }}
+                                />
+
+                                <TouchableOpacity onPress={handleCloseModal}>
+                                    <Text style={styles.secondaryLink}>Cancel</Text>
+                                </TouchableOpacity>
+                            </ScrollView>
                         </View>
-                    )}
-
-                    {!success && (
-                        <>
-                            <Text style={styles.label}>
-                                Email Address
-                            </Text>
-
-                            <TextInput
-                                value={email}
-                                onChangeText={setEmail}
-                                placeholder="name@university.edu"
-                                placeholderTextColor="#94a3b8"
-                                style={styles.input}
-                            />
-
-                            <Button
-                                title="Send Reset Link"
-                                onPress={handleReset}
-                                style={styles.resetButton}
-                            />
-                        </>
-                    )}
-
-                    {/* Back to login */}
-                    <View style={styles.footer}>
-                        <Text style={styles.footerText}>
-                            Remembered your password?
-                        </Text>
-                        <Button
-                            title="Go back to login"
-                            variant="link"
-                            onPress={() => navigation.navigate("Login")}
-                            textStyle={styles.footerLink}
-                        />
                     </View>
-                </View>
-            </View>
-        </SafeAreaView>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: "#0f172a", // slate-900 equivalent
-        paddingHorizontal: 24,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 16,
-    },
-    loginLink: {
-        fontSize: 14,
-        color: "#94a3b8", // slate-400
-    },
-    content: {
-        flex: 1,
+        flexGrow: 1,
+        backgroundColor: "#0f172a",
+        padding: 24,
         justifyContent: "center",
     },
-    titleContainer: {
-        marginBottom: 32,
-    },
     title: {
-        fontSize: 30,
+        fontSize: 26,
         fontWeight: "bold",
-        marginBottom: 8,
         color: "white",
+        textAlign: "center",
+    },
+    logo: {
+        marginBottom: 30,
+        alignSelf: "center",
     },
     subtitle: {
-        fontSize: 14,
-        color: "#94a3b8", // slate-400
+        textAlign: "center",
+        color: "#94a3b8",
+        marginBottom: 30,
     },
     card: {
-        backgroundColor: "#1e293b", // slate-800
-        padding: 24,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: "#334155", // slate-700
-    },
-    successBox: {
-        marginBottom: 24,
-        padding: 16,
-        borderRadius: 12,
-        backgroundColor: "#064e3b", // emerald-900 equivalent
-    },
-    successTitle: {
-        fontWeight: "600",
-        color: "#34d399", // emerald-400
-    },
-    successText: {
-        fontSize: 12,
-        marginTop: 4,
-        color: "#10b981", // emerald-500
+        backgroundColor: "#1e293b",
+        padding: 20,
+        borderRadius: 24,
     },
     label: {
-        fontSize: 12,
-        textTransform: "uppercase",
-        letterSpacing: 1,
-        color: "#94a3b8", // slate-400
-        marginBottom: 8,
+        color: "#cbd5e1",
+        marginBottom: 6,
+        marginTop: 12,
     },
     input: {
-        backgroundColor: "#0f172a", // slate-900
-        borderWidth: 1,
-        borderColor: "#334155", // slate-700
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        fontSize: 14,
+        backgroundColor: "#020617",
+        borderRadius: 16,
+        padding: 14,
         color: "white",
-        marginBottom: 24,
     },
-    resetButton: {
-        marginTop: 10,
+    button: {
+        marginTop: 20,
     },
-    footer: {
-        marginTop: 32,
-        paddingTop: 24,
-        borderTopWidth: 1,
-        borderTopColor: "#334155", // slate-700
-        alignItems: "center",
-    },
-    footerText: {
-        fontSize: 14,
-        color: "#94a3b8", // slate-400
-    },
-    footerLink: {
-        color: "#2563eb", // blue-600
+    loginText: {
+        marginTop: 20,
+        textAlign: "center",
+        color: "#1d63ed",
         fontWeight: "600",
-        marginTop: 4,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: '#1E293B',
+        borderRadius: 20,
+        padding: 32,
+        alignItems: 'center',
+        width: '100%',
+        maxWidth: 400,
+        maxHeight: '90%', // Limit height for ScrollView
+        alignSelf: 'center',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: 'white',
+        marginBottom: 12,
+    },
+    modalText: {
+        color: '#94A3B8',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 24,
+        fontSize: 16,
+    },
+    modalLabel: {
+        color: "#cbd5e1",
+        marginBottom: 6,
+        marginTop: 12,
+        alignSelf: 'flex-start',
+    },
+    modalInput: {
+        backgroundColor: '#0F172A',
+        width: '100%',
+        padding: 14,
+        borderRadius: 12,
+        color: 'white',
+        borderWidth: 1,
+        borderColor: '#334155',
+        textAlign: 'left',
+    },
+    tokenInput: {
+        backgroundColor: '#0F172A',
+        width: '100%',
+        padding: 14,
+        borderRadius: 12,
+        color: 'white',
+        borderWidth: 1,
+        borderColor: '#334155',
+        marginBottom: 16,
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
+    secondaryLink: {
+        color: '#3b82f6',
+        fontSize: 14,
+        textDecorationLine: 'underline',
+        marginBottom: 8,
+        textAlign: 'center',
+        marginTop: 10,
     },
 });

@@ -32,10 +32,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp",
         policy =>
         {
-            policy.WithOrigins(allowedOrigins)
+            policy.SetIsOriginAllowed(origin => true) // Allow any origin
                    .AllowAnyHeader()
                    .AllowAnyMethod()
-                   .AllowCredentials(); // Often needed for auth tokens in cookies/headers
+                   .AllowCredentials(); 
         });
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
