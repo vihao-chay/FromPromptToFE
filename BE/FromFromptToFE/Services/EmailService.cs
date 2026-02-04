@@ -205,6 +205,7 @@ namespace FromFromptToFE.Services
                                 Xin chào {name}! 🔐
                             </h2>
                             <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
+                            <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
                                 Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn vào nút bên dưới để tạo mật khẩu mới:
                             </p>
                             

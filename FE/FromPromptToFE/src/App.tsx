@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import HomePage from './pages/Home/HomePage';
 import Dashboard from './pages/Dashboard/Dashboard';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
 import Profile from './pages/Dashboard/Profile';
 import Editor from './pages/Editor/Editor';
 import Preview from './pages/Editor/Preview';
@@ -16,7 +18,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <div className="flex flex-col min-h-screen">
         {isAuthenticated && <Navbar />}
         <main className="flex-1">
@@ -24,6 +26,8 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* Public Route: Only for unauthenticated users */}
             <Route
@@ -59,7 +63,7 @@ const App: React.FC = () => {
           </footer>
         )}
       </div>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 

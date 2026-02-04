@@ -12,9 +12,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 import ProjectCard from "../../components/ProjectCard";
 import BottomTabBar from "../../components/BottomTabBar";
 import Logo from "../../components/Logo";
+import { useAuth } from "../../context/AuthContext";
 
 export default function DashboardScreen() {
     const [activeTab, setActiveTab] = useState("Projects");
+    const { logout } = useAuth();
 
     return (
         <View style={styles.container}>
@@ -23,12 +25,17 @@ export default function DashboardScreen() {
             <View style={styles.header}>
                 <Logo />
 
-                <Image
-                    source={{
-                        uri: "https://i.pravatar.cc/100",
-                    }}
-                    style={styles.avatar}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+                        <MaterialIcons name="logout" size={24} color="#ef4444" />
+                    </TouchableOpacity>
+                    <Image
+                        source={{
+                            uri: "https://i.pravatar.cc/100",
+                        }}
+                        style={styles.avatar}
+                    />
+                </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -206,5 +213,10 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    logoutButton: {
+        padding: 8,
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderRadius: 8,
     }
 });
