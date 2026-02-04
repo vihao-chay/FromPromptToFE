@@ -151,13 +151,6 @@ namespace FromFromptToFE.Services
                                 </tr>
                             </table>
                             
-                            <p style=""margin: 20px 0 0 0; color: #666666; font-size: 14px; line-height: 1.6;"">
-                                Hoặc copy và paste link sau vào trình duyệt:
-                            </p>
-                            <p style=""margin: 10px 0; padding: 12px; background-color: #f8f9fa; border-radius: 4px; color: #667eea; font-size: 14px; word-break: break-all;"">
-                                {verificationLink}
-                            </p>
-                            
                             <p style=""margin: 20px 0 0 0; color: #999999; font-size: 14px; line-height: 1.6;"">
                                 Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này.
                             </p>
@@ -225,13 +218,6 @@ namespace FromFromptToFE.Services
                                     </td>
                                 </tr>
                             </table>
-                            
-                            <p style=""margin: 20px 0 0 0; color: #666666; font-size: 14px; line-height: 1.6;"">
-                                Hoặc copy và paste link sau vào trình duyệt:
-                            </p>
-                            <p style=""margin: 10px 0; padding: 12px; background-color: #f8f9fa; border-radius: 4px; color: #f5576c; font-size: 14px; word-break: break-all;"">
-                                {resetLink}
-                            </p>
                             
                             <div style=""margin: 25px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;"">
                                 <p style=""margin: 0; color: #856404; font-size: 14px; line-height: 1.6;"">
