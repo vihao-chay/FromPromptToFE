@@ -159,8 +159,9 @@ namespace FromFromptToFE.Services
             var user = await _userRepository.GetByEmailAsync(dto.Email);
             if (user == null) return; // Bảo mật: không báo lỗi nếu email không tồn tại
 
+            // Generate GUID Token for Link
             user.ResetToken = Guid.NewGuid().ToString("N");
-            user.ResetTokenExpires = DateTime.UtcNow.AddHours(1);
+            user.ResetTokenExpires = DateTime.UtcNow.AddHours(1); // Link expires in 1 hour
             user.UpdatedAt = DateTime.UtcNow;
 
             await _userRepository.UpdateAsync(user);
@@ -168,12 +169,13 @@ namespace FromFromptToFE.Services
             await _emailService.SendPasswordResetEmailAsync(user.Email, user.Name ?? "User", user.ResetToken);
         }
 
-        public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+        public async Task<AuthResponseDto?> ResetPasswordAsync(ResetPasswordDto dto)
         {
             var user = await _userRepository.GetByResetTokenAsync(dto.Token);
             if (user == null || user.ResetTokenExpires < DateTime.UtcNow)
             {
-                return false;
+                // Invalid or expired token
+                return null;
             }
 
             user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
@@ -182,7 +184,21 @@ namespace FromFromptToFE.Services
             user.UpdatedAt = DateTime.UtcNow;
 
             await _userRepository.UpdateAsync(user);
-            return true;
+
+            // Generate Token for Auto-Login
+            var roles = await _userRepository.GetRolesAsync(user.Id);
+            var role = roles.FirstOrDefault() ?? "User";
+
+            var response = _mapper.Map<AuthResponseDto>(user);
+            response.Role = role;
+            response.Token = _jwtAuthService.GenerateToken(user, role);
+            response.RefreshToken = _jwtAuthService.GenerateRefreshToken();
+            
+            user.RefreshToken = response.RefreshToken;
+            user.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+            await _userRepository.UpdateAsync(user);
+
+            return response;
         }
 
         public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
