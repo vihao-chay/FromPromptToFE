@@ -51,4 +51,41 @@ export const verifyEmail = async (token) => {
     }
 
     return response.json();
+    return response.json();
+};
+
+export const forgotPassword = async (email) => {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Origin": "http://localhost:3000"
+        },
+        body: JSON.stringify({ email })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to send reset link");
+    }
+
+    return response.json();
+};
+
+export const resetPassword = async (token, newPassword) => {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Origin": "http://localhost:3000"
+        },
+        body: JSON.stringify({ token, newPassword })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Password reset failed");
+    }
+
+    return response.json();
 };

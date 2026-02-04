@@ -95,12 +95,12 @@ namespace FromFromptToFE.Controllers
         {
             try
             {
-                var result = await _authService.ResetPasswordAsync(dto);
-                if (!result)
+                var response = await _authService.ResetPasswordAsync(dto);
+                if (response == null)
                 {
-                    return ResponseEntity<object>.Fail("Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+                    return ResponseEntity<object>.Fail("Mã xác thực không hợp lệ hoặc đã hết hạn");
                 }
-                return ResponseEntity<object>.Ok(null, "Đặt lại mật khẩu thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Đặt lại mật khẩu thành công");
             }
             catch (Exception ex)
             {

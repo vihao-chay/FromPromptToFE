@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
 import Profile from './pages/Dashboard/Profile';
 import Editor from './pages/Editor/Editor';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* Public Route: Only for unauthenticated users */}
