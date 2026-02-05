@@ -44,4 +44,20 @@ public static class PasswordHelper
 
         return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
     }
+
+    /// <summary>
+    /// Kiểm tra mật khẩu mạnh (mạnh hơn validation ở DTO)
+    /// </summary>
+    public static bool IsStrongPassword(string password)
+    {
+        if (string.IsNullOrEmpty(password)) return false;
+        
+        bool hasUpperCase = password.Any(char.IsUpper);
+        bool hasLowerCase = password.Any(char.IsLower);
+        bool hasDigit = password.Any(char.IsDigit);
+        bool hasSpecialChar = password.Any(ch => !char.IsLetterOrDigit(ch));
+        bool hasMinLength = password.Length >= 8;
+
+        return hasUpperCase && hasLowerCase && hasDigit && hasSpecialChar && hasMinLength;
+    }
 }

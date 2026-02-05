@@ -10,7 +10,8 @@ namespace FromFromptToFE.DTOs.Auth
         public string Email { get; set; } = null!;
 
         [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
-        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+            ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt")]
         public string Password { get; set; } = null!;
     }
 
@@ -56,7 +57,8 @@ namespace FromFromptToFE.DTOs.Auth
         public string Token { get; set; } = null!;
 
         [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
-        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+            ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt")]
         public string NewPassword { get; set; } = null!;
     }
 
@@ -66,7 +68,8 @@ namespace FromFromptToFE.DTOs.Auth
         public string OldPassword { get; set; } = null!;
 
         [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
-        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+            ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt")]
         public string NewPassword { get; set; } = null!;
     }
 
