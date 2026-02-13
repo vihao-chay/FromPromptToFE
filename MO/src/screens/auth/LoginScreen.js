@@ -1,21 +1,100 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
     TextInput,
     StyleSheet,
-    TouchableOpacity,
     ScrollView,
+    TouchableOpacity,
+    Platform,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import * as AuthSession from "expo-auth-session";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
 import Logo from "../../components/Logo";
+import { GoogleConfig } from "../../constants/googleConfig";
+import { useToast } from "../../context/ToastContext";
+
+// 1. Setup WebBrowser to handle the redirect
+WebBrowser.maybeCompleteAuthSession();
+
+// 2. Define Google Discovery Endpoints explicitly
+const discovery = {
+    authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenEndpoint: "https://oauth2.googleapis.com/token",
+    revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+};
+
+// 3. Define Redirect URI explicitly with export
+// This ensures we have a single source of truth for the redirect URI
+export const redirectUri = AuthSession.makeRedirectUri({
+    useProxy: true,
+    scheme: "fromprompt2fe"
+});
 
 export default function LoginScreen({ navigation }) {
-    const { login, isLoading } = useAuth();
+    const { login, googleLogin, isLoading } = useAuth();
+    const { showToast } = useToast();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+    // 4. Create the auth request
+    // We strictly use the Web Client ID and Proxy for Expo Go development
+    const [request, response, promptAsync] = AuthSession.useAuthRequest(
+        {
+            clientId: GoogleConfig.webClientId,
+            redirectUri: redirectUri, // Use the exported URI
+            scopes: ["openid", "profile", "email"],
+            responseType: AuthSession.ResponseType.Token, // We want the Access Token
+            extraParams: {
+                access_type: "offline",
+            },
+        },
+        discovery
+    );
+
+    // 5. Log the Redirect URI exactly as requested
+    useEffect(() => {
+        if (request) {
+            console.log("\n====================================");
+            console.log("REQUIRED GOOGLE CONSOLE REDIRECT URI:");
+            console.log(request.redirectUri);
+            console.log("====================================\n");
+        }
+    }, [request]);
+
+    // 6. Handle the Auth Response
+    useEffect(() => {
+        if (response?.type === "success") {
+            const { access_token } = response.params;
+            handleGoogleLogin(access_token);
+        } else if (response?.type === 'error') {
+            showToast("Google Sign-In failed", "error");
+            console.error("Auth Error:", response.error);
+        }
+    }, [response]);
+
+    const handleGoogleLogin = async (token) => {
+        if (!token) {
+            alert("No access token received from Google");
+            return;
+        }
+
+        setIsGoogleLoading(true);
+        try {
+            await googleLogin(token);
+        } catch (error) {
+            alert(`Login Error: ${error.message}`);
+            console.error("Backend Login Error:", error);
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -33,6 +112,8 @@ export default function LoginScreen({ navigation }) {
                     placeholderTextColor="#94a3b8"
                     value={email}
                     onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
                 />
 
                 <Text style={styles.label}>Password</Text>
@@ -60,6 +141,40 @@ export default function LoginScreen({ navigation }) {
                     style={styles.signInButton}
                 />
             </View>
+
+            {/* Google Login Section */}
+            <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+                <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+                style={styles.googleButton}
+                onPress={() => promptAsync()}
+                disabled={!request || isGoogleLoading || isLoading}
+            >
+                {isGoogleLoading ? (
+                    <Text style={styles.googleButtonText}>Connecting...</Text>
+                ) : (
+                    <>
+                        <MaterialIcons name="g-translate" size={24} color="white" style={{ marginRight: 10 }} />
+                        <Text style={styles.googleButtonText}>Google</Text>
+                    </>
+                )}
+            </TouchableOpacity>
+
+            {/* Debug Info for User Convenience */}
+            {request && (
+                <View style={styles.debugContainer}>
+                    <Text style={styles.debugLabel}>
+                        👇 Thêm URI này vào Google Console 👇
+                    </Text>
+                    <Text selectable={true} style={styles.debugUri}>
+                        {request.redirectUri}
+                    </Text>
+                </View>
+            )}
 
             <Text style={styles.signupText}>
                 Don't have an account?{" "}
@@ -127,4 +242,53 @@ const styles = StyleSheet.create({
         color: "#2563eb",
         fontWeight: "600",
     },
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 24,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#334155',
+    },
+    dividerText: {
+        color: '#64748b',
+        paddingHorizontal: 16,
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    googleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#1E293B',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#334155',
+    },
+    googleButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    debugContainer: {
+        marginTop: 20,
+        padding: 10,
+        backgroundColor: '#334155',
+        borderRadius: 8
+    },
+    debugLabel: {
+        color: '#cbd5e1',
+        fontSize: 12,
+        textAlign: 'center',
+        marginBottom: 5
+    },
+    debugUri: {
+        color: '#ffffff',
+        fontSize: 11,
+        textAlign: 'center',
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace'
+    }
 });
