@@ -11,6 +11,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import * as AuthSession from "expo-auth-session";
+import * as Crypto from 'expo-crypto';
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
@@ -29,12 +30,16 @@ const discovery = {
     revocationEndpoint: "https://oauth2.googleapis.com/revoke",
 };
 
-// 3. Define Redirect URI explicitly with export
-// This ensures we have a single source of truth for the redirect URI
-export const redirectUri = AuthSession.makeRedirectUri({
-    useProxy: true,
-    scheme: "fromprompt2fe"
-});
+// 3. Define Redirect URI dynamically
+// This will generate the correct proxy URL for Expo Go (e.g., https://auth.expo.io/@user/slug)
+const redirectUri = "https://auth.expo.io/@vuongcpmse180126/MO";
+
+// Log Expo Redirect URI immediately
+console.log("===== EXPO REDIRECT URI =====");
+console.log(redirectUri);
+console.log("=============================");
+
+export { redirectUri };
 
 export default function LoginScreen({ navigation }) {
     const { login, googleLogin, isLoading } = useAuth();
@@ -42,37 +47,44 @@ export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [nonce, setNonce] = useState("");
 
-    // 4. Create the auth request
+    useEffect(() => {
+        const generateNonce = async () => {
+            const randomBytes = await Crypto.getRandomBytesAsync(16);
+            const nonceString = Array.from(randomBytes)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+            setNonce(nonceString);
+        };
+        generateNonce();
+    }, []);
+
+    // 4. Create the auth request using the dedicated hook
     // We strictly use the Web Client ID and Proxy for Expo Go development
-    const [request, response, promptAsync] = AuthSession.useAuthRequest(
+    const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
         {
             clientId: GoogleConfig.webClientId,
-            redirectUri: redirectUri, // Use the exported URI
-            scopes: ["openid", "profile", "email"],
-            responseType: AuthSession.ResponseType.Token, // We want the Access Token
-            extraParams: {
-                access_type: "offline",
-            },
-        },
-        discovery
+            redirectUri: redirectUri, // Use the generated URI
+            selectAccount: true, // Force account selection
+            nonce: nonce, // Required for id_token flow
+        }
     );
 
     // 5. Log the Redirect URI exactly as requested
     useEffect(() => {
         if (request) {
-            console.log("\n====================================");
-            console.log("REQUIRED GOOGLE CONSOLE REDIRECT URI:");
+            console.log("===== EXPO REDIRECT URI =====");
             console.log(request.redirectUri);
-            console.log("====================================\n");
+            console.log("=============================");
         }
     }, [request]);
 
     // 6. Handle the Auth Response
     useEffect(() => {
         if (response?.type === "success") {
-            const { access_token } = response.params;
-            handleGoogleLogin(access_token);
+            const { id_token } = response.params;
+            handleGoogleLogin(id_token);
         } else if (response?.type === 'error') {
             showToast("Google Sign-In failed", "error");
             console.error("Auth Error:", response.error);
@@ -81,13 +93,15 @@ export default function LoginScreen({ navigation }) {
 
     const handleGoogleLogin = async (token) => {
         if (!token) {
-            alert("No access token received from Google");
+            alert("No ID token received from Google");
             return;
         }
 
         setIsGoogleLoading(true);
         try {
             await googleLogin(token);
+            // STOP! Do not navigate manually. 
+            // The RootNavigator will see the user state change and automatically switch to MainNavigator (Dashboard).
         } catch (error) {
             alert(`Login Error: ${error.message}`);
             console.error("Backend Login Error:", error);
