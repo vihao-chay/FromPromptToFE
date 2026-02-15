@@ -54,14 +54,18 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         try {
             const response = await googleLoginService(idToken);
-            // Backend returns ResponseEntity with 'content' field
-            const userData = response.content || response.data || response;
+            // Backend returns ResponseEntity. 
+            // Handle both camelCase and PascalCase (common in .NET)
+            // ResponseEntity structure: { success: true, message: "...", content: { ... } }
+            const userData = response.content || response.Content || response.data || response.Data || response;
 
+            console.log("[AuthContext] Setting User Data:", JSON.stringify(userData, null, 2));
             setUser(userData);
             await AsyncStorage.setItem("user", JSON.stringify(userData));
 
-            if (userData.token) {
-                await AsyncStorage.setItem("token", userData.token);
+            const token = userData.token || userData.Token;
+            if (token) {
+                await AsyncStorage.setItem("token", token);
             }
             showToast("Google Login successful!", "success");
         } catch (error) {
