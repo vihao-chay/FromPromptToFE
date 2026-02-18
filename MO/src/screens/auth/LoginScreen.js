@@ -6,12 +6,12 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Platform,
+    ActivityIndicator,
 } from "react-native";
+
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
-import * as AuthSession from "expo-auth-session";
-import * as Crypto from 'expo-crypto';
+import { makeRedirectUri } from "expo-auth-session";
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
@@ -20,91 +20,51 @@ import Logo from "../../components/Logo";
 import { GoogleConfig } from "../../constants/googleConfig";
 import { useToast } from "../../context/ToastContext";
 
-// 1. Setup WebBrowser to handle the redirect
 WebBrowser.maybeCompleteAuthSession();
-
-// 2. Define Google Discovery Endpoints explicitly
-const discovery = {
-    authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-    tokenEndpoint: "https://oauth2.googleapis.com/token",
-    revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-};
-
-// 3. Define Redirect URI dynamically
-// This will generate the correct proxy URL for Expo Go (e.g., https://auth.expo.io/@user/slug)
-const redirectUri = "https://auth.expo.io/@vuongcpmse180126/MO";
-
-// Log Expo Redirect URI immediately
-console.log("===== EXPO REDIRECT URI =====");
-console.log(redirectUri);
-console.log("=============================");
-
-export { redirectUri };
 
 export default function LoginScreen({ navigation }) {
     const { login, googleLogin, isLoading } = useAuth();
     const { showToast } = useToast();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-    const [nonce, setNonce] = useState("");
 
-    useEffect(() => {
-        const generateNonce = async () => {
-            const randomBytes = await Crypto.getRandomBytesAsync(16);
-            const nonceString = Array.from(randomBytes)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-            setNonce(nonceString);
-        };
-        generateNonce();
-    }, []);
+    // Redirect URI dùng Expo proxy để hỗ trợ Expo Go
+    const redirectUri = makeRedirectUri({
+        scheme: "https",
+        path: "auth.expo.io/@vinyalo/mo",
+    });
 
-    // 4. Create the auth request using the dedicated hook
-    // We strictly use the Web Client ID and Proxy for Expo Go development
-    const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
-        {
+    // Google Auth Request
+    const [request, response, promptAsync] =
+        Google.useIdTokenAuthRequest({
             clientId: GoogleConfig.webClientId,
-            redirectUri: redirectUri, // Use the generated URI
-            selectAccount: true, // Force account selection
-            nonce: nonce, // Required for id_token flow
-        }
-    );
+            redirectUri,
+            scopes: ["openid", "profile", "email"],
+        });
 
-    // 5. Log the Redirect URI exactly as requested
-    useEffect(() => {
-        if (request) {
-            console.log("===== EXPO REDIRECT URI =====");
-            console.log(request.redirectUri);
-            console.log("=============================");
-        }
-    }, [request]);
-
-    // 6. Handle the Auth Response
+    // Handle Google response
     useEffect(() => {
         if (response?.type === "success") {
             const { id_token } = response.params;
-            handleGoogleLogin(id_token);
-        } else if (response?.type === 'error') {
-            showToast("Google Sign-In failed", "error");
-            console.error("Auth Error:", response.error);
+            if (id_token) {
+                handleGoogleLogin(id_token);
+            } else {
+                showToast("No ID token received", "error");
+            }
+        }
+        if (response?.type === "error") {
+            showToast("Google login failed", "error");
         }
     }, [response]);
 
-    const handleGoogleLogin = async (token) => {
-        if (!token) {
-            alert("No ID token received from Google");
-            return;
-        }
-
-        setIsGoogleLoading(true);
+    const handleGoogleLogin = async (idToken) => {
         try {
-            await googleLogin(token);
-            // STOP! Do not navigate manually. 
-            // The RootNavigator will see the user state change and automatically switch to MainNavigator (Dashboard).
+            setIsGoogleLoading(true);
+            await googleLogin(idToken);
         } catch (error) {
-            alert(`Login Error: ${error.message}`);
-            console.error("Backend Login Error:", error);
+            showToast("Backend login failed", "error");
         } finally {
             setIsGoogleLoading(false);
         }
@@ -156,43 +116,42 @@ export default function LoginScreen({ navigation }) {
                 />
             </View>
 
-            {/* Google Login Section */}
+            {/* Divider */}
             <View style={styles.dividerContainer}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
                 <View style={styles.dividerLine} />
             </View>
 
+            {/* Google Button */}
             <TouchableOpacity
                 style={styles.googleButton}
                 onPress={() => promptAsync()}
                 disabled={!request || isGoogleLoading || isLoading}
             >
                 {isGoogleLoading ? (
-                    <Text style={styles.googleButtonText}>Connecting...</Text>
+                    <ActivityIndicator color="white" />
                 ) : (
                     <>
-                        <MaterialIcons name="g-translate" size={24} color="white" style={{ marginRight: 10 }} />
+                        <MaterialIcons
+                            name="g-translate"
+                            size={24}
+                            color="white"
+                            style={{ marginRight: 10 }}
+                        />
                         <Text style={styles.googleButtonText}>Google</Text>
                     </>
                 )}
             </TouchableOpacity>
 
-            {/* Debug Info for User Convenience */}
-            {request && (
-                <View style={styles.debugContainer}>
-                    <Text style={styles.debugLabel}>
-                        👇 Thêm URI này vào Google Console 👇
-                    </Text>
-                    <Text selectable={true} style={styles.debugUri}>
-                        {request.redirectUri}
-                    </Text>
-                </View>
-            )}
-
             <Text style={styles.signupText}>
                 Don't have an account?{" "}
-                <Text style={styles.signupLink} onPress={() => navigation.navigate("Register")}>Sign up</Text>
+                <Text
+                    style={styles.signupLink}
+                    onPress={() => navigation.navigate("Register")}
+                >
+                    Sign up
+                </Text>
             </Text>
         </ScrollView>
     );
@@ -249,7 +208,7 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     forgotPasswordButton: {
-        alignSelf: 'flex-end',
+        alignSelf: "flex-end",
         marginTop: 10,
     },
     forgotPasswordText: {
@@ -257,52 +216,35 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
     dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         marginVertical: 24,
     },
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#334155',
+        backgroundColor: "#334155",
     },
     dividerText: {
-        color: '#64748b',
+        color: "#64748b",
         paddingHorizontal: 16,
         fontSize: 12,
-        fontWeight: '600',
+        fontWeight: "600",
     },
     googleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1E293B',
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#1E293B",
         padding: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: "#334155",
     },
     googleButtonText: {
-        color: 'white',
+        color: "white",
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: "600",
     },
-    debugContainer: {
-        marginTop: 20,
-        padding: 10,
-        backgroundColor: '#334155',
-        borderRadius: 8
-    },
-    debugLabel: {
-        color: '#cbd5e1',
-        fontSize: 12,
-        textAlign: 'center',
-        marginBottom: 5
-    },
-    debugUri: {
-        color: '#ffffff',
-        fontSize: 11,
-        textAlign: 'center',
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace'
-    }
 });
+
