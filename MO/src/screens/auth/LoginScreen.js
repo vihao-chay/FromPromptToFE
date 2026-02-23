@@ -1,21 +1,74 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
     TextInput,
     StyleSheet,
-    TouchableOpacity,
     ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
 } from "react-native";
+
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
 import Logo from "../../components/Logo";
+import { GoogleConfig } from "../../constants/googleConfig";
+import { useToast } from "../../context/ToastContext";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
-    const { login, isLoading } = useAuth();
+    const { login, googleLogin, isLoading } = useAuth();
+    const { showToast } = useToast();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+    // Redirect URI dùng Expo proxy để hỗ trợ Expo Go
+    const redirectUri = makeRedirectUri({
+        scheme: "https",
+        path: "auth.expo.io/@vinyalo/mo",
+    });
+
+    // Google Auth Request
+    const [request, response, promptAsync] =
+        Google.useIdTokenAuthRequest({
+            clientId: GoogleConfig.webClientId,
+            redirectUri,
+            scopes: ["openid", "profile", "email"],
+        });
+
+    // Handle Google response
+    useEffect(() => {
+        if (response?.type === "success") {
+            const { id_token } = response.params;
+            if (id_token) {
+                handleGoogleLogin(id_token);
+            } else {
+                showToast("No ID token received", "error");
+            }
+        }
+        if (response?.type === "error") {
+            showToast("Google login failed", "error");
+        }
+    }, [response]);
+
+    const handleGoogleLogin = async (idToken) => {
+        try {
+            setIsGoogleLoading(true);
+            await googleLogin(idToken);
+        } catch (error) {
+            showToast("Backend login failed", "error");
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -33,6 +86,8 @@ export default function LoginScreen({ navigation }) {
                     placeholderTextColor="#94a3b8"
                     value={email}
                     onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
                 />
 
                 <Text style={styles.label}>Password</Text>
@@ -61,9 +116,42 @@ export default function LoginScreen({ navigation }) {
                 />
             </View>
 
+            {/* Divider */}
+            <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
+                <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Button */}
+            <TouchableOpacity
+                style={styles.googleButton}
+                onPress={() => promptAsync()}
+                disabled={!request || isGoogleLoading || isLoading}
+            >
+                {isGoogleLoading ? (
+                    <ActivityIndicator color="white" />
+                ) : (
+                    <>
+                        <MaterialIcons
+                            name="g-translate"
+                            size={24}
+                            color="white"
+                            style={{ marginRight: 10 }}
+                        />
+                        <Text style={styles.googleButtonText}>Google</Text>
+                    </>
+                )}
+            </TouchableOpacity>
+
             <Text style={styles.signupText}>
                 Don't have an account?{" "}
-                <Text style={styles.signupLink} onPress={() => navigation.navigate("Register")}>Sign up</Text>
+                <Text
+                    style={styles.signupLink}
+                    onPress={() => navigation.navigate("Register")}
+                >
+                    Sign up
+                </Text>
             </Text>
         </ScrollView>
     );
@@ -120,11 +208,43 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     forgotPasswordButton: {
-        alignSelf: 'flex-end',
+        alignSelf: "flex-end",
         marginTop: 10,
     },
     forgotPasswordText: {
         color: "#2563eb",
         fontWeight: "600",
     },
+    dividerContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginVertical: 24,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: "#334155",
+    },
+    dividerText: {
+        color: "#64748b",
+        paddingHorizontal: 16,
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    googleButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#1E293B",
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#334155",
+    },
+    googleButtonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "600",
+    },
 });
+

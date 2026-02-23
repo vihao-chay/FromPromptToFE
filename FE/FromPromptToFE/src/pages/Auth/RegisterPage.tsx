@@ -45,7 +45,7 @@ export default function RegisterPage() {
                 }
 
                 // Show verification modal instead of immediate redirect
-                setShowVerifyModal(true);
+                setShowVerifyModal(false);
             } else {
                 setError(response.data.message || 'Registration failed.');
             }

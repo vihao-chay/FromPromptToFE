@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 
 import authService from '@/src/services/authService';
 
@@ -14,6 +15,31 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            try {
+                // Backend now accepts Access Token
+                const response = await authService.loginWithGoogle(tokenResponse.access_token);
+                console.log("Google Login Success", response.data);
+                const token = response.data.content?.token || response.data.token;
+
+                if (token) {
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('user', JSON.stringify(response.data.content));
+                    onLogin?.();
+                    navigate('/dashboard');
+                }
+            } catch (err: any) {
+                console.error("Google Login Backend Error", err);
+                setError(err.response?.data?.message || "Google Login failed.");
+            }
+        },
+        onError: () => {
+            console.log('Login Failed');
+            setError("Google Login Failed");
+        },
+    });
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,15 +175,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                             {isLoading ? 'Signing in...' : 'Sign In'}
                         </button>
 
-                        {/* DEV ONLY: Bypass Login Button */}
-                        {/* DEV ONLY: Auto-fill Button */}
-                        <button
-                            type="button"
-                            onClick={handleDemoLogin}
-                            className="w-full flex cursor-pointer items-center justify-center rounded-lg h-10 px-4 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all"
-                        >
-                            ⚡ DEV: Auto-fill Demo Creds
-                        </button>
+
                     </form>
 
                     {/* Social Logins */}
@@ -167,7 +185,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                             <span className="absolute bg-white dark:bg-[#1c1f27] px-4 text-xs text-gray-500 dark:text-gray-400">Or continue with</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <button className="flex items-center justify-center gap-2 h-11 border border-gray-200 dark:border-[#3b4354] rounded-lg hover:bg-gray-50 dark:hover:bg-[#282e39] transition-colors text-gray-700 dark:text-white text-sm font-medium">
+                            <button
+                                onClick={() => loginWithGoogle()}
+                                className="flex items-center justify-center gap-2 h-11 border border-gray-200 dark:border-[#3b4354] rounded-lg hover:bg-gray-50 dark:hover:bg-[#282e39] transition-colors text-gray-700 dark:text-white text-sm font-medium"
+                            >
                                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                                     <path d="M12 12.713V24h4.662C21.053 24 24 20.927 24 17.112v-4.399h-12z" fill="#4285F4"></path>
                                     <path d="M0 12.713h12V24H0V12.713z" fill="#34A853"></path>
