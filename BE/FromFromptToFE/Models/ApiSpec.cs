@@ -7,7 +7,7 @@ public partial class ApiSpec
 {
     public Guid Id { get; set; }
 
-    public Guid ProjectInputId { get; set; }
+    public Guid ProjectId { get; set; }
 
     public string? SpecType { get; set; }
 
@@ -15,5 +15,7 @@ public partial class ApiSpec
 
     public DateTime? CreatedAt { get; set; }
 
-    public virtual ProjectInput ProjectInput { get; set; } = null!;
+    public virtual ICollection<ApiSpecOutput> ApiSpecOutputs { get; set; } = new List<ApiSpecOutput>();
+
+    public virtual Project Project { get; set; } = null!;
 }

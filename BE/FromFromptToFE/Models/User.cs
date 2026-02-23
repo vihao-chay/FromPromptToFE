@@ -16,7 +16,13 @@ public partial class User
     public bool? IsVerified { get; set; }
 
     public string? VerifyToken { get; set; }
-    
+
+    public string? GoogleId { get; set; }
+
+    public string? AvatarUrl { get; set; }
+
+    public string Provider { get; set; } = null!;
+
     public string? ResetToken { get; set; }
 
     public DateTime? ResetTokenExpires { get; set; }
@@ -24,12 +30,6 @@ public partial class User
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpires { get; set; }
-
-    public string? GoogleId { get; set; }
-
-    public string? AvatarUrl { get; set; }
-
-    public string Provider { get; set; } = null!;
 
     public DateTime? CreatedAt { get; set; }
 
