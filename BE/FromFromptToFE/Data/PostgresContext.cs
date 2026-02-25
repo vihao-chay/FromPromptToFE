@@ -314,6 +314,10 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.GoogleId)
                 .HasColumnType("character varying")
                 .HasColumnName("google_id");
+            entity.Property(e => e.IsAdmin)
+                .HasDefaultValue(false)
+                .HasColumnName("is_admin");
+
             entity.Property(e => e.IsVerified)
                 .HasDefaultValue(false)
                 .HasColumnName("is_verified");

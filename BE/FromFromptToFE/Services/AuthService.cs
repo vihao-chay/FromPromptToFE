@@ -87,8 +87,7 @@ namespace FromFromptToFE.Services
                 throw new Exception("Tài khoản chưa được xác thực");
             }
 
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;
@@ -183,8 +182,7 @@ namespace FromFromptToFE.Services
                     await _userRepository.UpdateAsync(user);
                 }
 
-                var roles = await _userRepository.GetRolesAsync(user.Id);
-                var role = roles.FirstOrDefault() ?? "User";
+                var role = user.IsAdmin == true ? "Admin" : "User";
 
                 var response = _mapper.Map<AuthResponseDto>(user);
                 response.Role = role;
@@ -236,8 +234,7 @@ namespace FromFromptToFE.Services
             await _userRepository.UpdateAsync(user);
 
             // Generate Token for Auto-Login
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;
@@ -303,8 +300,7 @@ namespace FromFromptToFE.Services
                 return null;
             }
 
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;
