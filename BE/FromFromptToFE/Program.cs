@@ -96,6 +96,8 @@ builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IJwtAuthService, JwtService>();
 builder.Services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
 builder.Services.AddScoped<IOrganizationMemberService, OrganizationMemberService>();
+builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
