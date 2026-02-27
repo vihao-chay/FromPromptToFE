@@ -72,6 +72,38 @@ namespace FromFromptToFE.Mappings
                     }
                 })
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+            // ApiSpec mappings
+            CreateMap<ApiSpec, ApiSpecDto>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent != null)
+                    {
+                        dest.SpecContent = JsonDocument.Parse(src.SpecContent).RootElement;
+                    }
+                });
+
+            CreateMap<CreateApiSpecDto, ApiSpec>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent.HasValue)
+                    {
+                        dest.SpecContent = src.SpecContent.Value.GetRawText();
+                    }
+                });
+
+            CreateMap<UpdateApiSpecDto, ApiSpec>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent.HasValue)
+                    {
+                        dest.SpecContent = src.SpecContent.Value.GetRawText();
+                    }
+                })
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
         }
     }
 }
