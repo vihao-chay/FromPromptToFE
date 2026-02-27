@@ -13,6 +13,12 @@ import Editor from './pages/Editor/Editor';
 import Preview from './pages/Editor/Preview';
 import GitHubStatus from './pages/Github/GitHubStatus';
 import GitHubIntegration from './pages/Github/GitHubIntegration';
+import OrganizationDetail from './pages/Organization/OrganizationDetail';
+import NewOrganization from './pages/Organization/NewOrganization';
+import ChangeLogs from './pages/ChangeLogs/ChangeLogs';
+import Repositories from './pages/Repositories/Repositories';
+import ApiKeys from './pages/ApiKeys/ApiKeys';
+import DesignSystems from './pages/DesignSystems/DesignSystems';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
@@ -45,6 +51,12 @@ const App: React.FC = () => {
             <Route path="/preview" element={isAuthenticated ? <Preview /> : <Navigate to="/login" />} />
             <Route path="/github-integration" element={isAuthenticated ? <GitHubIntegration /> : <Navigate to="/login" />} />
             <Route path="/github-status" element={isAuthenticated ? <GitHubStatus /> : <Navigate to="/login" />} />
+            <Route path="/organizations/:id" element={isAuthenticated ? <OrganizationDetail /> : <Navigate to="/login" />} />
+            <Route path="/new-organization" element={isAuthenticated ? <NewOrganization /> : <Navigate to="/login" />} />
+            <Route path="/change-logs" element={isAuthenticated ? <ChangeLogs /> : <Navigate to="/login" />} />
+            <Route path="/repositories" element={isAuthenticated ? <Repositories /> : <Navigate to="/login" />} />
+            <Route path="/api-keys" element={isAuthenticated ? <ApiKeys /> : <Navigate to="/login" />} />
+            <Route path="/design-systems" element={isAuthenticated ? <DesignSystems /> : <Navigate to="/login" />} />
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

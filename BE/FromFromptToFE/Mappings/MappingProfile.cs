@@ -72,6 +72,9 @@ namespace FromFromptToFE.Mappings
                     }
                 })
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+            CreateMap<ChangeLog, ChangeLogDto>();
+            CreateMap<CreateChangeLogDto, ChangeLog>();
         }
     }
 }
