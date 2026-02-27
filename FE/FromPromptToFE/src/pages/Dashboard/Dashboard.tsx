@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ProjectStatus, Project, Activity } from '../../types';
 import organizationService from '../../services/organizationService';
+import projectService from '../../services/projectService';
 
 interface Organization {
   id: string;
@@ -14,25 +15,52 @@ interface Organization {
 const ICON_STYLES = [
   { icon: "school", iconBg: "bg-indigo-100 dark:bg-indigo-900/30", iconColor: "text-indigo-600 dark:text-indigo-400" },
   { icon: "rocket_launch", iconBg: "bg-pink-100 dark:bg-pink-900/30", iconColor: "text-pink-600 dark:text-pink-400" },
-  { icon: "code", iconBg: "bg-teal-100 dark:bg-teal-900/30", iconColor: "text-teal-600 dark:text-teal-400" },
+  { icon: "code", iconBg: "bg-blue-100 dark:bg-primary/20", iconColor: "text-blue-600 dark:text-primary" },
   { icon: "design_services", iconBg: "bg-orange-100 dark:bg-orange-900/30", iconColor: "text-orange-600 dark:text-orange-400" },
   { icon: "work", iconBg: "bg-purple-100 dark:bg-purple-900/30", iconColor: "text-purple-600 dark:text-purple-400" },
   { icon: "groups", iconBg: "bg-cyan-100 dark:bg-cyan-900/30", iconColor: "text-cyan-600 dark:text-cyan-400" },
 ];
 
+const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240"><rect fill="%23e2e8f0" width="400" height="240"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="14">Project</text></svg>');
+
+const mapApiProjectToProject = (p: { id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string }): Project => {
+  const status = (p.projectType === 'Generated' || p.projectType === 'Completed') ? ProjectStatus.COMPLETED : (p.projectType === 'Draft' ? ProjectStatus.DRAFT : ProjectStatus.ACTIVE);
+  const created = p.createdAt ?? p.CreatedAt ?? '';
+  const dateStr = created ? (() => { try { return new Date(created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return created; } })() : '';
+  return {
+    id: String(p.id ?? p.Id ?? ''),
+    name: String(p.name ?? p.Name ?? 'Unnamed'),
+    status,
+    createdAt: dateStr,
+    imageUrl: PLACEHOLDER_IMAGE,
+  };
+};
+
 const Dashboard: React.FC = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const itemsPerPage = 4;
 
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
         const response = await organizationService.getAll();
-        console.log(response.data);
-        const items = response.data?.content?.totalItems || [];
-        setOrganizations(items);
+        const content = response.data?.content;
+        const list = content?.totalItems ?? content?.TotalItems ?? (Array.isArray(content) ? content : []);
+        const items = Array.isArray(list) ? list : [];
+        setOrganizations(
+          items.map((o: { id?: string; Id?: string; name?: string; Name?: string; organizationMembers?: unknown[] }) => ({
+            id: (o.id ?? o.Id ?? '').toString(),
+            name: String(o.name ?? o.Name ?? '').trim() || 'Unnamed organization',
+            plan: (o as { plan?: string; Plan?: string }).plan ?? (o as { Plan?: string }).Plan,
+            memberCount: Array.isArray((o as { organizationMembers?: unknown[] }).organizationMembers)
+              ? (o as { organizationMembers: unknown[] }).organizationMembers.length
+              : 0,
+          }))
+        );
       } catch (error) {
         console.error('Error fetching organizations:', error);
       } finally {
@@ -41,6 +69,33 @@ const Dashboard: React.FC = () => {
     };
     fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    if (organizations.length === 0) {
+      setProjectsLoading(false);
+      setAllProjects([]);
+      return;
+    }
+    setProjectsLoading(true);
+    const orgIds = organizations.map((o) => o.id);
+    Promise.all(orgIds.map((id) => projectService.getAll({ organizationId: id, pageIndex: 1, pageSize: 100 })))
+      .then((results) => {
+        const raw: Array<{ id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string }> = [];
+        results.forEach((res) => {
+          const c = res.data?.content;
+          const items = c?.TotalItems ?? c?.totalItems ?? [];
+          (Array.isArray(items) ? items : []).forEach((p: Record<string, unknown>) => raw.push(p as typeof raw[0]));
+        });
+        raw.sort((a, b) => {
+          const t1 = a.createdAt ?? a.CreatedAt ?? '';
+          const t2 = b.createdAt ?? b.CreatedAt ?? '';
+          return new Date(t2).getTime() - new Date(t1).getTime();
+        });
+        setAllProjects(raw.map(mapApiProjectToProject));
+      })
+      .catch(() => setAllProjects([]))
+      .finally(() => setProjectsLoading(false));
+  }, [organizations]);
 
   const totalPages = Math.ceil(organizations.length / itemsPerPage);
   const displayedOrganizations = organizations.slice(
@@ -58,18 +113,8 @@ const Dashboard: React.FC = () => {
 
   const getIconStyle = (index: number) => ICON_STYLES[index % ICON_STYLES.length];
 
-  const recentProjects: Project[] = [
-    { id: '1', name: 'SaaS Dashboard', status: ProjectStatus.ACTIVE, createdAt: 'Oct 24, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFZ15yGEJzDjxuKMNX9N5WwzSFdseT3DP7WBeaauRuaI29RWgupqcioIhdzxjnzpgsDnZawZjpBpFzwpl_5Dp_LUXN8qJBBXcRFzaJzxa5ImuGVYbo8LU69IZt1sOp-YD0o9p19ul8Dl2D38J0jBay1FeM1lc9pWTz89BFq8in84epk2fnPOEU40QbXBf13E9WCvBK6ITRk9zC9fNnCahf0GdkpeI0NkJeu6vZphd9n2aOGSj0lZypnJFAEv1sPJb5Bm4vaPr0p7NX' },
-    { id: '2', name: 'E-commerce Page', status: ProjectStatus.DRAFT, createdAt: 'Oct 20, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCA6qhKIZZKzSPjdMRDeOG3MI1q2RjqK0TJVfItimhb2FJ1pXC8OAxdWMdYVRwf13r3V7edqhSeUCzzFRIYhnIqxXGP-ejjIuU_xbuSkbUEWDLlbXlvD9v6ScuwhLTKCBTC960vop_2ouchY65F9Ikk7KXe4ojjs9DDbUUNgr9LXPQEtgBY8vJ798pdYfLjq9Osjet9M5RUHLh3irq15aaiYXRBZffPL2oLYr46gj9I5J7tmsy9V01iXJ1zO9MbwtVgjUhm5W_gGQxE' },
-    { id: '3', name: 'Blog Template', status: ProjectStatus.COMPLETED, createdAt: 'Oct 15, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDAD7kQkqjxWcEx8tItv1WiMpTfPHd8r4IkcZG0ZDNm7jQ-V4sHjgWM4b4rGZTZw9tcWP0234r1t_pH0vISzJkjJkUhwE3EFa0ikfr6RkKLnjAe7zVESWMjEGBhY8bMUsr36vPeBqfu6F1efX1_YnaS-xjvefWPfjnUH_OxBnMYNwk_RpKL6QZ1Wz4JDzzCmsizXqPL0ECioV18Wak3qWmGOzoTsXwhDqBoKTDL3moybfq7COm1wXe9_b3knsh_bBf8-MuvR88KV9C6' },
-    { id: '4', name: 'Weather App Widget', status: ProjectStatus.ARCHIVED, createdAt: 'Oct 12, 2023', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDZ0mVMRcs7ABDeLxippQXH3Yag2lO2mGidrSK4Y83ULbdvxpWXagEp-4fGc_dngbvvwxfFYtK2ZCTnCpZX6HEC1WCzjc0l7JYHI_kbid_j3r8rJKKbzxhwanjKk175Z0BOaqE45PQudY2PaK6O0CWppGRJJtmf2IGAliLL2OBVWfHiJaApjhBFl2A06K2Kp0K_ePkD45kO-0C5gazFjzCktrfWE_v3T54mArOvq3iUeDQGJcFWk8EPCEm9R7Z2cA0ZcFrWyZmmCp5u' }
-  ];
-
-  const activityList: Activity[] = [
-    { id: '1', name: 'Blog Template', date: 'Oct 10, 2023', status: ProjectStatus.STABLE },
-    { id: '2', name: 'Contact Form', date: 'Oct 08, 2023', status: ProjectStatus.IN_PROGRESS },
-    { id: '3', name: 'Portfolio Website', date: 'Oct 05, 2023', status: ProjectStatus.ARCHIVED }
-  ];
+  const recentProjects = allProjects.slice(0, 12);
+  const activityList: Activity[] = allProjects.map((p) => ({ id: p.id, name: p.name, date: p.createdAt, status: p.status }));
 
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
@@ -133,15 +178,17 @@ const Dashboard: React.FC = () => {
               {displayedOrganizations.map((org, index) => {
                 const iconStyle = getIconStyle(currentPage * itemsPerPage + index);
                 return (
-                  <div key={org.id} className="group flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconStyle.iconBg} ${iconStyle.iconColor}`}>
-                      <span className="material-symbols-outlined">{iconStyle.icon}</span>
+                  <Link key={org.id} to={`/organizations/${org.id}`}>
+                    <div className="group flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconStyle.iconBg} ${iconStyle.iconColor}`}>
+                        <span className="material-symbols-outlined">{iconStyle.icon}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{org.name}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{org.memberCount ?? 0} members</p>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{org.name}</h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{org.memberCount ?? 0} members</p>
-                    </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -197,7 +244,21 @@ const Dashboard: React.FC = () => {
 
       {/* Project Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {recentProjects.map((project) => (
+        {projectsLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-pulse">
+              <div className="aspect-video bg-slate-200 dark:bg-slate-700" />
+              <div className="p-5 space-y-2">
+                <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+              </div>
+            </div>
+          ))
+        ) : recentProjects.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-slate-500 dark:text-slate-400">
+            No projects yet. Generate code in the Editor and choose an organization to save — projects will appear here after refresh.
+          </div>
+        ) : recentProjects.map((project) => (
           <div key={project.id} className="group flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/5">
             <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-900">
               <div
@@ -205,7 +266,7 @@ const Dashboard: React.FC = () => {
                 style={{ backgroundImage: `url('${project.imageUrl}')` }}
               ></div>
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</button>
+                <Link to="/editor" className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
               </div>
             </div>
             <div className="p-5 flex flex-col gap-2">
@@ -241,7 +302,13 @@ const Dashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {activityList.map((item) => (
+              {activityList.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                    No activity yet. Generate and save a project to see it here.
+                  </td>
+                </tr>
+              ) : activityList.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{item.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-500">{item.date}</td>

@@ -98,6 +98,8 @@ builder.Services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepo
 builder.Services.AddScoped<IOrganizationMemberService, OrganizationMemberService>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
+builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
