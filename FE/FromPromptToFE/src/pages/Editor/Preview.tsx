@@ -3,17 +3,27 @@ import React, { useState, useEffect } from 'react';
 import { generateCode } from '../../services/geminiService';
 
 const Preview: React.FC = () => {
-  const [generatedCode, setGeneratedCode] = useState<string>('// Generating code...');
-  const [activeFile, setActiveFile] = useState('index.tsx');
+  const [generatedTsx, setGeneratedTsx] = useState<string>('// Generating code...');
+  const [generatedHtml, setGeneratedHtml] = useState<string>('');
+  const [activeFile, setActiveFile] = useState<'index.tsx' | 'index.html'>('index.tsx');
   const [isGenerating, setIsGenerating] = useState(true);
 
   useEffect(() => {
+    const cachedTsx = sessionStorage.getItem('last_generated_code');
+    const cachedHtml = sessionStorage.getItem('last_generated_html');
+    if (cachedTsx) {
+      setGeneratedTsx(cachedTsx);
+      setGeneratedHtml(cachedHtml || '');
+      setIsGenerating(false);
+      return;
+    }
     const ui = sessionStorage.getItem('last_ui_prompt') || 'A simple landing page';
     const schema = sessionStorage.getItem('last_schema_prompt') || '';
 
     const triggerGen = async () => {
       const code = await generateCode(ui, schema);
-      setGeneratedCode(code);
+      setGeneratedTsx(code);
+      sessionStorage.setItem('last_generated_code', code);
       setIsGenerating(false);
     };
 
@@ -29,8 +39,8 @@ const Preview: React.FC = () => {
             <span className="material-symbols-outlined text-xl">auto_awesome</span>
           </div>
           <h1 className="text-xl font-bold tracking-tight">Generated Code Preview</h1>
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${isGenerating ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'} border border-emerald-500/20 flex items-center gap-1`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+          <span className={`px-2 py-0.5 rounded text-xs font-medium ${isGenerating ? 'bg-amber-500/10 text-amber-500' : 'bg-primary/10 text-primary'} border border-primary/20 flex items-center gap-1`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-primary'}`}></span>
             {isGenerating ? 'Generating...' : 'Ready'}
           </span>
         </div>
@@ -61,10 +71,10 @@ const Preview: React.FC = () => {
                 <span className="material-symbols-outlined text-sm">code</span> index.tsx
               </div>
               <div
-                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'styles.css' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
-                onClick={() => setActiveFile('styles.css')}
+                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.html' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                onClick={() => setActiveFile('index.html')}
               >
-                <span className="material-symbols-outlined text-sm">css</span> styles.css
+                <span className="material-symbols-outlined text-sm">code</span> index.html
               </div>
             </div>
             <button className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs uppercase font-bold">
@@ -72,7 +82,7 @@ const Preview: React.FC = () => {
             </button>
           </div>
           <div className="flex-1 overflow-auto custom-scrollbar p-4 font-mono text-sm leading-relaxed text-slate-300 whitespace-pre">
-            {generatedCode}
+            {activeFile === 'index.tsx' ? generatedTsx : (generatedHtml || '<!-- No HTML generated. Run from Editor to get TSX + HTML. -->')}
           </div>
         </section>
 
@@ -122,23 +132,24 @@ const Preview: React.FC = () => {
               </div>
             </div>
             <div className="flex-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark overflow-hidden relative group">
-              {/* Preview Canvas Mock */}
-              <div className="w-full h-full p-8 flex flex-col justify-center">
-                <div className="space-y-6 max-w-lg">
-                  <div className={`h-12 w-3/4 bg-slate-200 dark:bg-slate-800 rounded-lg ${isGenerating ? 'animate-pulse' : ''}`}></div>
-                  <div className="space-y-3">
-                    <div className={`h-4 w-full bg-slate-100 dark:bg-slate-800 rounded ${isGenerating ? 'animate-pulse' : ''}`}></div>
-                    <div className={`h-4 w-5/6 bg-slate-100 dark:bg-slate-800 rounded ${isGenerating ? 'animate-pulse' : ''}`}></div>
-                  </div>
-                  <div className="h-12 w-40 bg-primary/20 rounded-lg border border-primary/30 flex items-center justify-center text-primary font-bold">
-                    Get Started
+              {generatedHtml ? (
+                <iframe title="HTML Preview" srcDoc={generatedHtml} className="w-full h-full min-h-[300px]" />
+              ) : (
+                <div className="w-full h-full p-8 flex flex-col justify-center">
+                  <div className="space-y-6 max-w-lg">
+                    <div className={`h-12 w-3/4 bg-slate-200 dark:bg-slate-800 rounded-lg ${isGenerating ? 'animate-pulse' : ''}`}></div>
+                    <div className="space-y-3">
+                      <div className={`h-4 w-full bg-slate-100 dark:bg-slate-800 rounded ${isGenerating ? 'animate-pulse' : ''}`}></div>
+                      <div className={`h-4 w-5/6 bg-slate-100 dark:bg-slate-800 rounded ${isGenerating ? 'animate-pulse' : ''}`}></div>
+                    </div>
+                    <div className="h-12 w-40 bg-primary/20 rounded-lg border border-primary/30 flex items-center justify-center text-primary font-bold">
+                      Get Started
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* Overlay Grid Pattern */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#135bec 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+              )}
               <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-[10px] text-white/70 uppercase tracking-widest border border-white/10">
-                Interactive Sandbox
+                {generatedHtml ? 'HTML Preview' : 'Interactive Sandbox'}
               </div>
             </div>
           </div>

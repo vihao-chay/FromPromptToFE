@@ -130,7 +130,7 @@ const Profile: React.FC = () => {
               <div className="flex flex-col pl-4">
                 <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Status</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                  <span className="h-2 w-2 rounded-full bg-primary"></span>
                   <span className="text-sm font-semibold">Active</span>
                 </div>
               </div>
