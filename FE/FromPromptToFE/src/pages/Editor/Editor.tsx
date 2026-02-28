@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { generateCodeFromInputs } from '../../services/geminiService';
+import organizationService from '../../services/organizationService';
+import projectService from '../../services/projectService';
 
 const PROMPT_HISTORY_KEY = 'editor_prompt_history';
 const PROMPT_HISTORY_MAX = 15;
@@ -35,6 +38,25 @@ const DEFAULT_DESIGN_SYSTEM = `{
   "typography": { "fontFamily": "Inter", "scale": 1.25 }
 }`;
 
+const DESIGN_SYSTEM_PRESETS: Record<string, { label: string; json: string }> = {
+  default: {
+    label: 'Default (free)',
+    json: '{"colors":{"primary":"#135bec","background":"#101622"},"typography":{"fontFamily":"Inter","scale":1.25}}',
+  },
+  minimal: {
+    label: 'Minimal (free)',
+    json: '{"colors":{"primary":"#0f172a","background":"#ffffff","muted":"#64748b"},"typography":{"fontFamily":"Inter","scale":1.2}}',
+  },
+  dark: {
+    label: 'Dark (free)',
+    json: '{"colors":{"primary":"#818cf8","background":"#0f172a","surface":"#1e293b"},"typography":{"fontFamily":"Inter","scale":1.25}}',
+  },
+  accent: {
+    label: 'Accent (free)',
+    json: '{"colors":{"primary":"#059669","background":"#f0fdf4","accent":"#10b981"},"typography":{"fontFamily":"Inter","scale":1.2}}',
+  },
+};
+
 type OutputTab = 'code' | 'preview' | 'tasks';
 type Device = 'desktop' | 'tablet' | 'mobile';
 type TaskStatus = 'Pending' | 'Running' | 'Success' | 'Failed';
@@ -64,11 +86,18 @@ type ChatTurn =
   | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string };
 
 const Editor: React.FC = () => {
-  const [erd, setErd] = useState(DEFAULT_ERD);
-  const [apiSpec, setApiSpec] = useState(DEFAULT_API_SPEC);
+  const [erd, setErd] = useState('');
+  const [apiSpec, setApiSpec] = useState('');
   const [designSystem, setDesignSystem] = useState(DEFAULT_DESIGN_SYSTEM);
-  const [prompt, setPrompt] = useState('Generate a modern dashboard with sidebar navigation and stats cards.');
+  const [selectedDesignPreset, setSelectedDesignPreset] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [openSection, setOpenSection] = useState<'erd' | 'api' | 'design' | null>(null);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [plusMenuSubmenu, setPlusMenuSubmenu] = useState<'design' | null>(null);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
+  const advancedPanelRef = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState({ top: 0, left: 0 });
   const [outputTab, setOutputTab] = useState<OutputTab>('code');
   const [device, setDevice] = useState<Device>('desktop');
   const [isSaving, setIsSaving] = useState(false);
@@ -100,6 +129,42 @@ const Editor: React.FC = () => {
     const id = setInterval(() => setRunningStepIndex((i) => Math.min(i + 1, 4)), 1800);
     return () => clearInterval(id);
   }, [hasRunningTurn]);
+
+  useEffect(() => {
+    if (!plusMenuOpen) return;
+    const el = plusMenuRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setPopoverStyle({ left: rect.left, top: rect.top - 8 });
+    }
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isPlusButton = plusMenuRef.current?.contains(target);
+      const isInsidePopup = document.getElementById('plus-menu-portal')?.contains(target);
+      if (!isPlusButton && !isInsidePopup) {
+        setPlusMenuOpen(false);
+        setPlusMenuSubmenu(null);
+      }
+    };
+    const t = setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', onDocClick, true); };
+  }, [plusMenuOpen]);
+
+  useEffect(() => {
+    if (!showAdvanced) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInsidePanel = advancedPanelRef.current?.contains(target);
+      const isPlusArea = plusMenuRef.current?.contains(target);
+      const isInsidePopup = document.getElementById('plus-menu-portal')?.contains(target);
+      if (!isInsidePanel && !isPlusArea && !isInsidePopup) {
+        setShowAdvanced(false);
+        setOpenSection(null);
+      }
+    };
+    const t = setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', onDocClick, true); };
+  }, [showAdvanced]);
 
   const handleGenerate = async () => {
     const userText = prompt.trim();
@@ -139,13 +204,36 @@ const Editor: React.FC = () => {
       setGeneratedTsx(tsx);
       setGeneratedHtml(html);
       const isError = tsx.startsWith('// Error');
-      const finalTasks = TASK_IDS.map((t) => ({ ...t, status: (isError ? (t.status === 'Running' ? 'Failed' : t.status) : 'Success') as TaskStatus, progress: isError ? 0 : 100 }));
+      const finalTasks = TASK_IDS.map((t, i) => ({ ...t, status: (isError ? (i === 0 ? 'Failed' : 'Pending') : 'Success') as TaskStatus, progress: isError ? 0 : 100 }));
       setTasks((prev) => prev.map((t) => ({ ...t, status: isError ? (t.status === 'Running' ? 'Failed' : t.status) : ('Success' as TaskStatus), progress: isError ? 0 : 100 })));
       if (!isError) {
         sessionStorage.setItem('last_generated_code', tsx);
         sessionStorage.setItem('last_generated_html', html);
+        try { localStorage.setItem('editor_last_preview_html', html); localStorage.setItem('editor_last_preview_updated', String(Date.now())); } catch {}
         savePromptToHistory(userText);
         setOutputTab('code');
+        organizationService.getAll().then((res) => {
+          const content = res.data?.content as { TotalItems?: { id?: string; Id?: string }[]; totalItems?: { id?: string; Id?: string }[] } | undefined;
+          const list = Array.isArray(content?.TotalItems) ? content.TotalItems : Array.isArray(content?.totalItems) ? content.totalItems : [];
+          const firstId = list[0]?.id ?? list[0]?.Id;
+          if (firstId) {
+            projectService.create({
+              organizationId: String(firstId),
+              name: (userText.slice(0, 80) || 'Generated').trim() || 'Generated',
+              projectType: 'Generated',
+              systemPrompt: userText,
+              entitySchema: erd || undefined,
+              generatedTsx: tsx,
+              generatedHtml: html,
+            }).then((res) => {
+              const created = res.data?.content as { id?: string; Id?: string } | undefined;
+              const projectId = created?.id ?? created?.Id;
+              if (projectId && html) {
+                try { localStorage.setItem('project_preview_' + projectId, html); } catch {}
+              }
+            }).catch(() => {});
+          }
+        }).catch(() => {});
       } else setOutputTab('tasks');
       setChatTurns((prev) =>
         prev.map((turn) =>
@@ -187,12 +275,13 @@ const Editor: React.FC = () => {
     return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
   };
 
-  const showOutputPanel = hasRunOnce;
-  const showTabs = showOutputPanel && !isSaving && (generatedTsx || generatedHtml);
+  const hasSuccessOutput = Boolean(generatedTsx && !generatedTsx.startsWith('// Error'));
+  const showOutputPanel = hasRunOnce && !isSaving && hasSuccessOutput;
+  const showTabs = showOutputPanel && (generatedTsx || generatedHtml);
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-64px)]">
-      <div className="flex flex-wrap items-center gap-1.5 text-xs px-4 pt-2 border-b border-slate-200 dark:border-[#282e39] pb-2">
+    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-1.5 text-xs px-4 pt-2 border-b border-slate-200 dark:border-[#282e39] pb-2">
         <Link className="text-slate-500 dark:text-[#9da6b9] hover:text-primary font-medium" to="/dashboard">Projects</Link>
         <span className="material-symbols-outlined text-slate-400 text-[10px]">chevron_right</span>
         <span className="text-slate-900 dark:text-white font-medium">Create New Project</span>
@@ -200,9 +289,20 @@ const Editor: React.FC = () => {
 
       <div className="flex-1 flex min-h-0">
         {/* Left: Chat log + input (ChatGPT style) */}
-        <div className={`flex flex-col ${showOutputPanel ? 'w-[48%]' : 'flex-1'} min-w-0 transition-all duration-200`}>
+        <div className={`flex flex-col min-h-0 ${showOutputPanel ? 'w-[48%]' : 'flex-1'} min-w-0 transition-all duration-200`}>
           <div className="flex-1 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar flex flex-col">
+              {chatTurns.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] py-12 px-4">
+                  <div className="rounded-3xl bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-[#1c1f27] dark:to-[#161921] border border-slate-200/80 dark:border-[#282e39] p-10 max-w-md w-full text-center shadow-sm">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-5">
+                      <span className="material-symbols-outlined text-3xl text-primary">auto_awesome</span>
+                    </div>
+                    <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Describe your idea</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Type in the box below and AI will generate React (TSX) and HTML for you.</p>
+                  </div>
+                </div>
+              )}
               {chatTurns.map((turn) => {
                 if (turn.role === 'user') {
                   return (
@@ -245,6 +345,12 @@ const Editor: React.FC = () => {
                               );
                             })}
                           </div>
+                          {turn.status === 'running' && (
+                            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-[#282e39]">
+                              <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">Đang xử lý...</span>
+                            </div>
+                          )}
                           {turn.status === 'done' && (
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Xem Code / Preview bên phải.</p>
                           )}
@@ -261,29 +367,116 @@ const Editor: React.FC = () => {
 
             {/* Input: + bên trái, placeholder giữa, nút gửi bên phải */}
             <div className="p-4 pt-0">
-              {showAdvanced && (
-                <div className="mb-3 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] p-3 max-h-[220px] overflow-y-auto custom-scrollbar">
-                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Tùy chọn: ERD, API Spec, Design System</p>
-                  <SectionCard title="ERD / Schema" subtitle="DBML" value={erd} onChange={setErd} placeholder="Tables..." />
-                  <SectionCard title="API Specs" subtitle="OpenAPI" value={apiSpec} onChange={setApiSpec} placeholder="OpenAPI..." />
-                  <SectionCard title="Design System" subtitle="JSON" value={designSystem} onChange={setDesignSystem} placeholder="Colors..." />
+              {showAdvanced && openSection && (
+                <div ref={advancedPanelRef} className="mb-3 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] p-3 max-h-[280px] overflow-y-auto custom-scrollbar">
+                  {openSection === 'erd' && <SectionCard title="ERD / Schema" subtitle="DBML" value={erd} onChange={setErd} placeholder="Tables..." />}
+                  {openSection === 'api' && <SectionCard title="API Specs" subtitle="OpenAPI" value={apiSpec} onChange={setApiSpec} placeholder="OpenAPI..." />}
+                  {openSection === 'design' && <SectionCard title="Design System" subtitle="JSON" value={designSystem} onChange={setDesignSystem} placeholder="Colors..." />}
                 </div>
               )}
-              <div className="flex items-end gap-0 rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/30">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className={`flex-shrink-0 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#161921] transition-colors ${showAdvanced ? 'text-primary bg-primary/5' : ''}`}
-                  title="Thêm ERD, API Spec, Design System"
-                >
-                  <span className="material-symbols-outlined text-[24px]">add</span>
-                </button>
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-sm overflow-visible focus-within:ring-2 focus-within:ring-primary/30 min-h-[48px] py-1 pl-1 pr-2">
+                <div ref={plusMenuRef} className="relative flex-shrink-0 z-20">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPlusMenuOpen((v) => !v); setPlusMenuSubmenu(null); }}
+                    className={`flex-shrink-0 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#161921] transition-colors ${plusMenuOpen ? 'text-primary bg-primary/5' : ''}`}
+                    title="Add ERD, API Spec, or Design System"
+                  >
+                    <span className="material-symbols-outlined text-[24px]">add</span>
+                  </button>
+                  {plusMenuOpen && createPortal(
+                    <div
+                      id="plus-menu-portal"
+                      className="fixed z-[100] w-60 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-lg py-1 transform -translate-y-full"
+                      style={{ left: popoverStyle.left, top: popoverStyle.top }}
+                    >
+                      {!plusMenuSubmenu ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenSection('erd'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">schema</span>
+                            ERD / Schema
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenSection('api'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">api</span>
+                            API Spec
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPlusMenuSubmenu('design')}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">palette</span>
+                            Design System
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setPlusMenuSubmenu(null)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                            Back
+                          </button>
+                          <div className="border-t border-slate-200 dark:border-[#282e39] my-1" />
+                          {Object.entries(DESIGN_SYSTEM_PRESETS).map(([id, { label, json }]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => { try { setDesignSystem(JSON.stringify(JSON.parse(json), null, 2)); } catch { setDesignSystem(json); } setSelectedDesignPreset(id); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                            >
+                              <span className="material-symbols-outlined text-[20px] text-primary">palette</span>
+                              {label}
+                            </button>
+                          ))}
+                          <div className="border-t border-slate-200 dark:border-[#282e39] my-1" />
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedDesignPreset(null); setDesignSystem(''); setOpenSection('design'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                            Custom (edit JSON)
+                          </button>
+                        </>
+                      )}
+                    </div>,
+                    document.body
+                  )}
+                </div>
+                {selectedDesignPreset && DESIGN_SYSTEM_PRESETS[selectedDesignPreset] && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-[#3b4354] pl-2.5 pr-1.5 py-1">
+                    <span className="material-symbols-outlined text-primary text-[16px]">palette</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-200">{DESIGN_SYSTEM_PRESETS[selectedDesignPreset].label}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSelectedDesignPreset(null); setDesignSystem(DEFAULT_DESIGN_SYSTEM); }}
+                      className="p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300 dark:hover:bg-[#3b4354] transition-colors"
+                      aria-label="Remove design system"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                )}
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
-                  placeholder="Mô tả giao diện hoặc tính năng cần tạo (vd: tạo trang login, form đăng ký...)"
-                  className="flex-1 min-h-[48px] max-h-[200px] resize-none py-3 px-4 text-sm text-slate-900 dark:text-white bg-transparent border-0 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-[#4d576e] custom-scrollbar"
+                  placeholder="Ask anything — e.g. login page, dashboard, form..."
+                  className="flex-1 min-h-[44px] max-h-[48px] resize-none overflow-hidden py-2.5 px-3 text-sm text-slate-900 dark:text-white bg-transparent border-0 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-[#4d576e]"
                   rows={1}
                 />
                 <button
@@ -302,7 +495,7 @@ const Editor: React.FC = () => {
 
         {/* Right: Code / Preview / Tasks (chỉ sau khi đã chạy) */}
         {showOutputPanel && (
-        <div className="flex-1 flex flex-col rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] overflow-hidden min-w-0 border-l">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] overflow-hidden border-l">
           <div className="flex border-b border-slate-200 dark:border-[#282e39]">
             {(['code', 'preview', 'tasks'] as const).map((tab) => (
               <button
@@ -327,8 +520,8 @@ const Editor: React.FC = () => {
 
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {outputTab === 'code' && (
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-[#282e39] bg-slate-50 dark:bg-[#161921]">
+              <div className="flex flex-col min-h-0 flex-1">
+                <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-[#282e39] bg-slate-50 dark:bg-[#161921]">
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -363,7 +556,7 @@ const Editor: React.FC = () => {
                     </Link>
                   </div>
                 </div>
-                <pre className="flex-1 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
+                <pre className="flex-1 min-h-0 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
                   {activeCodeTab === 'tsx'
                     ? (generatedTsx || '// Nhập prompt và bấm Gửi để tạo code TSX + HTML.')
                     : (generatedHtml || '<!-- Nhập prompt và bấm Gửi để tạo code. -->')}

@@ -17,5 +17,8 @@ namespace FromFromptToFE.DTOs
 
         [Url(ErrorMessage = "URL repository không hợp lệ")]
         public string? RepoUrl { get; set; }
+
+        public string? GeneratedTsx { get; set; }
+        public string? GeneratedHtml { get; set; }
     }
 }
