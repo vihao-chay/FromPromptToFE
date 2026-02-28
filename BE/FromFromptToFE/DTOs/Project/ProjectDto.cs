@@ -13,5 +13,7 @@ namespace FromFromptToFE.DTOs
         public JsonElement? EntitySchema { get; set; }
         public DateTime? CreatedAt { get; set; }
         public string? RepoUrl { get; set; }
+        public string? GeneratedTsx { get; set; }
+        public string? GeneratedHtml { get; set; }
     }
 }

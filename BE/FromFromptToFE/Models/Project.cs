@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace FromFromptToFE.Models;
@@ -20,6 +20,10 @@ public partial class Project
     public DateTime? CreatedAt { get; set; }
 
     public string? RepoUrl { get; set; }
+
+    public string? GeneratedTsx { get; set; }
+
+    public string? GeneratedHtml { get; set; }
 
     public virtual ICollection<ApiSpec> ApiSpecs { get; set; } = new List<ApiSpec>();
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FromFromptToFE.Models;
 using Microsoft.EntityFrameworkCore;
@@ -251,6 +251,8 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("repo_url");
             entity.Property(e => e.SystemPrompt).HasColumnName("system_prompt");
+            entity.Property(e => e.GeneratedTsx).HasColumnType("text").HasColumnName("generated_tsx");
+            entity.Property(e => e.GeneratedHtml).HasColumnType("text").HasColumnName("generated_html");
 
             entity.HasOne(d => d.Organization).WithMany(p => p.Projects)
                 .HasForeignKey(d => d.OrganizationId)

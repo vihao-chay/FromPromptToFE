@@ -7,6 +7,8 @@ export interface CreateProjectPayload {
   systemPrompt?: string;
   entitySchema?: string;
   repoUrl?: string;
+  generatedTsx?: string;
+  generatedHtml?: string;
 }
 
 export interface UpdateProjectPayload {
@@ -15,6 +17,8 @@ export interface UpdateProjectPayload {
   systemPrompt?: string;
   entitySchema?: string;
   repoUrl?: string;
+  generatedTsx?: string;
+  generatedHtml?: string;
 }
 
 export interface ProjectDto {
@@ -26,6 +30,8 @@ export interface ProjectDto {
   entitySchema?: string;
   createdAt?: string;
   repoUrl?: string;
+  generatedTsx?: string;
+  generatedHtml?: string;
 }
 
 export interface ProjectFilter {
@@ -61,6 +67,8 @@ const projectService = {
     if (payload.systemPrompt != null) body.systemPrompt = payload.systemPrompt;
     if (payload.entitySchema != null) body.entitySchema = payload.entitySchema;
     if (payload.repoUrl != null) body.repoUrl = payload.repoUrl;
+    if (payload.generatedTsx != null) body.generatedTsx = payload.generatedTsx;
+    if (payload.generatedHtml != null) body.generatedHtml = payload.generatedHtml;
     return api.post<{ content: ProjectDto }>('/api/Project', body);
   },
 
