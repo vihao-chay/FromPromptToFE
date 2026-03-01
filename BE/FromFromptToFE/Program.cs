@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
+using FromFromptToFE.Repositories.Interfaces;
 using FromFromptToFE.Services.Interfaces;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -102,6 +103,13 @@ builder.Services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
 builder.Services.AddScoped<IApiSpecService, ApiSpecService>();
 builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
+
+// New ProjectOutput & Page Services
+builder.Services.AddScoped<IProjectOutputRepository, ProjectOutputRepository>();
+builder.Services.AddScoped<IProjectOutputService, ProjectOutputService>();
+builder.Services.AddScoped<IPageRepository, PageRepository>();
+builder.Services.AddScoped<IPageService, PageService>();
+builder.Services.AddScoped<ILLMService, LLMService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
