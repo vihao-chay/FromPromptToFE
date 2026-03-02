@@ -191,12 +191,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                                 onClick={() => loginWithGoogle()}
                                 className="flex items-center justify-center gap-2 h-11 border border-gray-200 dark:border-[#3b4354] rounded-lg hover:bg-gray-50 dark:hover:bg-[#282e39] transition-colors text-gray-700 dark:text-white text-sm font-medium"
                             >
-                                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                                    <path d="M12 12.713V24h4.662C21.053 24 24 20.927 24 17.112v-4.399h-12z" fill="#4285F4"></path>
-                                    <path d="M0 12.713h12V24H0V12.713z" fill="#34A853"></path>
-                                    <path d="M0 0h12v12.713H0V0z" fill="#FBBC05"></path>
-                                    <path d="M12 0h7.338C21.913 0 24 2.087 24 4.662v8.051H12V0z" fill="#EA4335"></path>
-                                </svg>
+                                <Google
+                                    width={20}
+                                    height={20}
+                                />
                                 Google
                             </button>
                             <button className="flex items-center justify-center gap-2 h-11 border border-gray-200 dark:border-[#3b4354] rounded-lg hover:bg-gray-50 dark:hover:bg-[#282e39] transition-colors text-gray-700 dark:text-white text-sm font-medium">
