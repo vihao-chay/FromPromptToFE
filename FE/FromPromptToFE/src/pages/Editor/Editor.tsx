@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { generateCodeFromInputs } from '../../services/geminiService';
+import { generateCode } from '../../services/codeGenService';
 import organizationService from '../../services/organizationService';
 import projectService from '../../services/projectService';
 
@@ -68,12 +68,52 @@ const TASK_IDS = [
   { id: '4', label: 'Apply design system' },
 ];
 
-const STEP_EXPLANATIONS: string[] = [
-  'Dựa trên prompt của bạn, tôi đang phân tích yêu cầu về giao diện và chức năng. Sau đó thiết kế cấu trúc component và luồng dữ liệu phù hợp để triển khai.',
-  'Đang tạo các component cần thiết: form nhập liệu, validation, và bố cục trang. Các phần này sẽ được kết nối với logic và state của ứng dụng.',
-  'Sinh code React (TSX) với hooks và component, cùng bản HTML tương ứng. Code được format và comment để bạn dễ chỉnh sửa và tích hợp vào project.',
-  'Áp dụng design system (màu sắc, typography, spacing) vào giao diện. Giao diện sẽ nhất quán và sẵn sàng để xem preview bên phải.',
+/** Hiển thị từng step trong lúc xử lý (ngắn, lần lượt); xong thì thay bằng steps thật từ API. */
+const STEPS_WHILE_RUNNING_VI: string[] = [
+  'Đang phân tích yêu cầu...',
+  'Đang tạo component...',
+  'Đang sinh code TSX & HTML...',
+  'Đang áp dụng design...',
 ];
+const STEPS_WHILE_RUNNING_EN: string[] = [
+  'Analyzing requirements...',
+  'Creating components...',
+  'Generating TSX & HTML...',
+  'Applying design...',
+];
+
+const EDITOR_LABELS = {
+  vi: {
+    generating: 'Đang tạo',
+    completed: 'Đã tạo xong',
+    completedAt: (time: string) => `Đã tạo xong lúc ${time}`,
+    viewCode: 'Xem Code / Preview bên phải.',
+    processing: 'Đang xử lý...',
+    error: 'Có lỗi khi tạo. Thử lại hoặc chỉnh prompt.',
+    doneTitle: 'Xong',
+  },
+  en: {
+    generating: 'Generating',
+    completed: 'Created',
+    completedAt: (time: string) => `Created at ${time}`,
+    viewCode: 'View Code / Preview on the right.',
+    processing: 'Processing...',
+    error: 'Something went wrong. Try again or adjust your prompt.',
+    doneTitle: 'Done',
+  },
+} as const;
+
+/** Detect prompt language: English vs Vietnamese. Prefer EN for common EN words (e.g. "login form") so steps match question. */
+function detectPromptLanguage(prompt: string): 'vi' | 'en' {
+  const t = (prompt || '').trim();
+  if (!t) return 'en';
+  const hasViDiacritics = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(t);
+  const commonEn = /\b(create|login|page|form|button|dashboard|register|forgot|password|sign|email|input|modal|table|list|card)\b/i.test(t);
+  const viOnlyWords = /\b(tạo|trang|đăng\s*nhập|mật\s*khẩu|màu|xanh|làm|nào|hãy|của|bạn|cho|giao\s*diện)\b/i.test(t);
+  if (hasViDiacritics || viOnlyWords) return 'vi';
+  if (commonEn) return 'en';
+  return 'en';
+}
 
 interface PromptHistoryItem {
   id: string;
@@ -83,7 +123,7 @@ interface PromptHistoryItem {
 
 type ChatTurn =
   | { id: string; role: 'user'; text: string }
-  | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string };
+  | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; completedAt?: number; steps?: string[]; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string };
 
 const Editor: React.FC = () => {
   const [erd, setErd] = useState('');
@@ -195,12 +235,13 @@ const Editor: React.FC = () => {
             : turn
         )
       );
-      const { tsx, html } = await generateCodeFromInputs({
+      const result = await generateCode({
         systemPrompt: userText,
         erdSchema: erd,
         apiSpec,
         designSystem,
       });
+      const { steps, tsx, html } = result;
       setGeneratedTsx(tsx);
       setGeneratedHtml(html);
       const isError = tsx.startsWith('// Error');
@@ -238,7 +279,7 @@ const Editor: React.FC = () => {
       setChatTurns((prev) =>
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === 'assistant'
-            ? { ...turn, status: isError ? 'error' : 'done', tasks: finalTasks, tsx, html }
+            ? { ...turn, status: isError ? 'error' : 'done', completedAt: isError ? undefined : Date.now(), steps: steps?.length >= 4 ? steps : undefined, tasks: finalTasks, tsx, html }
             : turn
         )
       );
@@ -303,7 +344,7 @@ const Editor: React.FC = () => {
                   </div>
                 </div>
               )}
-              {chatTurns.map((turn) => {
+              {chatTurns.map((turn, turnIndex) => {
                 if (turn.role === 'user') {
                   return (
                     <div key={turn.id} className="flex justify-end">
@@ -314,31 +355,40 @@ const Editor: React.FC = () => {
                   );
                 }
                 const isThisRunning = turn.role === 'assistant' && turn.status === 'running';
-                const visibleCount = isThisRunning ? Math.min(runningStepIndex + 1, 4) : 4;
+                const hasRealSteps = turn.status === 'done' && turn.steps && turn.steps.length >= 4;
+                const userPrompt = turnIndex > 0 && chatTurns[turnIndex - 1]?.role === 'user' ? (chatTurns[turnIndex - 1] as { text: string }).text : '';
+                const lang = detectPromptLanguage(userPrompt);
+                const labels = EDITOR_LABELS[lang];
+                const stepsWhileRunning = lang === 'vi' ? STEPS_WHILE_RUNNING_VI : STEPS_WHILE_RUNNING_EN;
+                const stepTexts = hasRealSteps ? turn.steps!.slice(0, 4) : stepsWhileRunning;
+                const visibleCount = hasRealSteps ? 4 : (isThisRunning ? Math.min(runningStepIndex + 1, 4) : 0);
+                const completedTime = turn.status === 'done' && turn.completedAt != null
+                  ? new Date(turn.completedAt).toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: lang === 'en' })
+                  : '';
                 return (
                   <div key={turn.id} className="flex justify-start">
                     <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-slate-100 dark:bg-[#1c1f27] border border-slate-200 dark:border-[#282e39] px-4 py-3">
                       {(turn.status === 'running' || turn.status === 'done') && (
                         <>
                           <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
-                            {turn.status === 'running' ? 'Đang tạo' : 'Đã tạo xong'}
+                            {turn.status === 'running' ? labels.generating : (completedTime ? labels.completedAt(completedTime) : labels.completed)}
                           </p>
                           <div className="space-y-4">
-                            {STEP_EXPLANATIONS.slice(0, visibleCount).map((paragraph, i) => {
+                            {stepTexts.slice(0, visibleCount).map((paragraph, i) => {
                               const isDone = turn.status === 'done' || (isThisRunning && i < runningStepIndex) || (isThisRunning && runningStepIndex >= 4);
                               const isCurrent = isThisRunning && i === runningStepIndex && runningStepIndex < 4;
                               return (
                                 <div key={i} className="flex gap-2">
                                   <span className="flex-shrink-0 mt-0.5">
                                     {isDone ? (
-                                      <span className="text-primary" title="Xong">
+                                      <span className="text-primary" title={labels.doneTitle}>
                                         <span className="material-symbols-outlined text-[14px]">check_circle</span>
                                       </span>
                                     ) : (
                                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
                                     )}
                                   </span>
-                                  <p className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed ${isCurrent ? 'text-slate-700 dark:text-slate-200' : ''}`}>
+                                  <p className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap min-w-0 ${isCurrent ? 'text-slate-700 dark:text-slate-200' : ''}`}>
                                     {paragraph}
                                   </p>
                                 </div>
@@ -348,16 +398,16 @@ const Editor: React.FC = () => {
                           {turn.status === 'running' && (
                             <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-[#282e39]">
                               <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">Đang xử lý...</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">{labels.processing}</span>
                             </div>
                           )}
                           {turn.status === 'done' && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">Xem Code / Preview bên phải.</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">{labels.viewCode}</p>
                           )}
                         </>
                       )}
                       {turn.status === 'error' && (
-                        <p className="text-sm text-red-500 dark:text-red-400">Có lỗi khi tạo. Thử lại hoặc chỉnh prompt.</p>
+                        <p className="text-sm text-red-500 dark:text-red-400">{labels.error}</p>
                       )}
                     </div>
                   </div>
