@@ -16,18 +16,15 @@ namespace FromFromptToFE.Services
         private readonly IProjectOutputRepository _projectOutputRepo;
         private readonly IProjectRepository _projectRepo;
         private readonly IPageRepository _pageRepo;
-        private readonly ILLMService _llmService;
 
         public ProjectOutputService(
             IProjectOutputRepository projectOutputRepo,
             IProjectRepository projectRepo,
-            IPageRepository pageRepo,
-            ILLMService llmService)
+            IPageRepository pageRepo)
         {
             _projectOutputRepo = projectOutputRepo;
             _projectRepo = projectRepo;
             _pageRepo = pageRepo;
-            _llmService = llmService;
         }
 
         public async Task<IEnumerable<ProjectOutputDto>> GetAllByProjectIdAsync(Guid projectId)
@@ -91,28 +88,8 @@ namespace FromFromptToFE.Services
 
             try
             {
-                // 2. Call LLM Service (Mocked)
-                var generatedPages = await _llmService.GeneratePagesMockAsync(
-                    project.SystemPrompt ?? "", 
-                    project.EntitySchema ?? "", 
-                    project.ProjectType);
-
-                // 3. Save Generated Pages
-                foreach (var mockPage in generatedPages)
-                {
-                    var newPage = new Page
-                    {
-                        Id = Guid.NewGuid(),
-                        ProjectOutputId = newOutput.Id,
-                        Route = mockPage.Route,
-                        PageType = mockPage.PageType,
-                        EntityName = mockPage.EntityName,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _pageRepo.AddAsync(newPage);
-                }
-                
-                // 4. Update Status to Completed
+                // 2. Không gọi LLM ở BE — FE sẽ dùng Gemini, rồi gửi pages (nếu có API nhận) hoặc tạo output trống
+                // 3. Update Status to Completed
                 newOutput.Status = "Completed";
                 await _projectOutputRepo.UpdateAsync(newOutput);
                 await _projectOutputRepo.SaveChangesAsync();

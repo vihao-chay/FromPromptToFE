@@ -1,8 +1,0 @@
-C:\Program Files\dotnet\sdk\10.0.103\Microsoft.Common.CurrentVersion.targets(5381,5): error MSB3027: Could not copy "D:\FPT\FPT-7\SWD\PROJECT\FromPromptToFE\BE\FromFromptToFE\obj\Debug\net8.0\apphost.exe" to "bin\Debug\net8.0\FromFromptToFE.exe". Exceeded retry count of 10. Failed. The file is locked by: "FromFromptToFE (13856)" [D:\FPT\FPT-7\SWD\PROJECT\FromPromptToFE\BE\FromFromptToFE\FromFromptToFE.csproj]
-C:\Program Files\dotnet\sdk\10.0.103\Microsoft.Common.CurrentVersion.targets(5381,5): error MSB3021: Unable to copy file "D:\FPT\FPT-7\SWD\PROJECT\FromPromptToFE\BE\FromFromptToFE\obj\Debug\net8.0\apphost.exe" to "bin\Debug\net8.0\FromFromptToFE.exe". The process cannot access the file 'D:\FPT\FPT-7\SWD\PROJECT\FromPromptToFE\BE\FromFromptToFE\bin\Debug\net8.0\FromFromptToFE.exe' because it is being used by another process. [D:\FPT\FPT-7\SWD\PROJECT\FromPromptToFE\BE\FromFromptToFE\FromFromptToFE.csproj]
-
-Build FAILED.
-    10 Warning(s)
-    2 Error(s)
-
-Time Elapsed 00:00:11.95

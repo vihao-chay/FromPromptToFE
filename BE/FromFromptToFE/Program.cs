@@ -1,5 +1,6 @@
 
 using FromFromptToFE.Data;
+using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
 using FromFromptToFE.Services;
 using FromFromptToFE.Helpers;
@@ -109,7 +110,6 @@ builder.Services.AddScoped<IProjectOutputRepository, ProjectOutputRepository>();
 builder.Services.AddScoped<IProjectOutputService, ProjectOutputService>();
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IPageService, PageService>();
-builder.Services.AddScoped<ILLMService, LLMService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
