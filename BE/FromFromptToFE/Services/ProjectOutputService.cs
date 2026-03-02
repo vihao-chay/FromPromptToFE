@@ -61,9 +61,37 @@ namespace FromFromptToFE.Services
                     Route = p.Route,
                     PageType = p.PageType,
                     EntityName = p.EntityName,
+                    GeneratedCode = p.GeneratedCode,
+                    FileName = p.FileName,
                     CreatedAt = p.CreatedAt
                 }).ToList()
             };
+        }
+
+        public async Task<ProjectOutputDto> AddPagesToOutputAsync(Guid outputId, IEnumerable<CreatePageDto> pages)
+        {
+            var output = await _projectOutputRepo.GetProjectOutputWithDetailsAsync(outputId);
+            if (output == null) throw new Exception("Project output not found");
+
+            var list = pages?.ToList() ?? new List<CreatePageDto>();
+            foreach (var dto in list)
+            {
+                var page = new Page
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectOutputId = outputId,
+                    Route = dto.Route,
+                    PageType = dto.PageType,
+                    EntityName = dto.EntityName,
+                    GeneratedCode = dto.GeneratedCode,
+                    FileName = dto.FileName,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _pageRepo.AddAsync(page);
+            }
+            await _pageRepo.SaveChangesAsync();
+
+            return await GetByIdAsync(outputId) ?? throw new Exception("Failed to retrieve output after adding pages");
         }
 
         public async Task<ProjectOutputDto> GenerateCodeAsync(Guid projectId, Guid userId)

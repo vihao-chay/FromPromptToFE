@@ -1,7 +1,7 @@
 using FromFromptToFE.Base;
+using FromFromptToFE.DTOs.Page;
 using FromFromptToFE.DTOs.ProjectOutput;
 using FromFromptToFE.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -9,7 +9,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class ProjectOutputController : ControllerBase
     {
         private readonly IProjectOutputService _service;
@@ -72,6 +71,28 @@ namespace FromFromptToFE.Controllers
             catch (Exception ex)
             {
                 return ResponseEntity<ProjectOutputDto>.Fail(ex.Message, 500);
+            }
+        }
+
+        /// <summary>
+        /// FE gửi danh sách pages (sau khi gọi Gemini) để lưu vào output.
+        /// </summary>
+        [HttpPost("{outputId}/pages")]
+        public async Task<IActionResult> AddPages(Guid outputId, [FromBody] List<CreatePageDto> pages)
+        {
+            if (outputId == Guid.Empty)
+            {
+                return ResponseEntity<ProjectOutputDto>.Fail("outputId không hợp lệ", 400);
+            }
+
+            try
+            {
+                var result = await _service.AddPagesToOutputAsync(outputId, pages ?? new List<CreatePageDto>());
+                return ResponseEntity<ProjectOutputDto>.Ok(result, "Thêm pages thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<ProjectOutputDto>.Fail(ex.Message, ex.Message == "Project output not found" ? 404 : 500);
             }
         }
     }

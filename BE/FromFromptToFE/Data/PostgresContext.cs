@@ -211,6 +211,10 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.EntityName)
                 .HasColumnType("character varying")
                 .HasColumnName("entity_name");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.GeneratedCode).HasColumnName("generated_code");
             entity.Property(e => e.PageType)
                 .HasColumnType("character varying")
                 .HasColumnName("page_type");
@@ -317,7 +321,6 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.IsAdmin)
                 .HasDefaultValue(false)
                 .HasColumnName("is_admin");
-
             entity.Property(e => e.IsVerified)
                 .HasDefaultValue(false)
                 .HasColumnName("is_verified");

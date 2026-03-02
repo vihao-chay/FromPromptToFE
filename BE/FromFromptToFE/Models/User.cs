@@ -31,11 +31,11 @@ public partial class User
 
     public DateTime? RefreshTokenExpires { get; set; }
 
-    public bool? IsAdmin { get; set; }
-
     public DateTime? CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
+    public bool IsAdmin { get; set; }
 
     public virtual ICollection<ChangeLog> ChangeLogs { get; set; } = new List<ChangeLog>();
 
