@@ -70,6 +70,32 @@ namespace FromFromptToFE.Services
             }
         }
 
+        public async Task SendOrganizationInviteEmailAsync(string email, string name, string organizationName, string role)
+        {
+            try
+            {
+                var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+                var loginLink = $"{frontendUrl}/login"; // Or specific accept invite link
+
+                var emailBody = GetOrganizationInviteEmailTemplate(name, organizationName, role, loginLink);
+
+                await SendEmailAsync(
+                    email,
+                    $"Lời mời tham gia tổ chức {organizationName} - FromPromptToFE",
+                    emailBody
+                );
+
+                _logger.LogInformation("Organization invite email sent successfully to {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send organization invite email to {Email}", email);
+                // We might not want to throw an exception here so that the add member process doesn't fail entirely just because email failed
+                // But for now, we follow the pattern
+                throw new Exception($"Không thể gửi email mời tham gia tổ chức: {ex.Message}");
+            }
+        }
+
         private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
         {
             var message = new MimeMessage();
@@ -205,7 +231,6 @@ namespace FromFromptToFE.Services
                                 Xin chào {name}! 🔐
                             </h2>
                             <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
-                            <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
                                 Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn vào nút bên dưới để tạo mật khẩu mới:
                             </p>
                             
@@ -225,6 +250,74 @@ namespace FromFromptToFE.Services
                                     ⚠️ <strong>Lưu ý:</strong> Link này sẽ hết hạn sau 1 giờ. Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
                                 </p>
                             </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style=""background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e9ecef;"">
+                            <p style=""margin: 0; color: #999999; font-size: 14px;"">
+                                © 2026 FromPromptToFE. All rights reserved.
+                            </p>
+                            <p style=""margin: 10px 0 0 0; color: #999999; font-size: 12px;"">
+                                Email được gửi tự động, vui lòng không trả lời email này.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+        }
+
+        private string GetOrganizationInviteEmailTemplate(string name, string organizationName, string role, string loginLink)
+        {
+            return $@"
+<!DOCTYPE html>
+<html lang=""vi"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Lời mời tham gia tổ chức</title>
+</head>
+<body style=""margin: 0; padding: 0; background-color: #f4f4f7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"">
+    <table role=""presentation"" style=""width: 100%; border-collapse: collapse; background-color: #f4f4f7;"">
+        <tr>
+            <td align=""center"" style=""padding: 40px 0;"">
+                <table role=""presentation"" style=""width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"">
+                    <!-- Header -->
+                    <tr>
+                        <td style=""background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;"">
+                            <h1 style=""margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;"">FromPromptToFE</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style=""padding: 40px 30px;"">
+                            <h2 style=""margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;"">
+                                Xin chào {name}! 🎉
+                            </h2>
+                            <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
+                                Bạn vừa được mời tham gia vào tổ chức <strong>{organizationName}</strong> trên hệ thống <strong>FromPromptToFE</strong> với vai trò là <strong>{role}</strong>.
+                            </p>
+                            
+                            <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
+                                Đăng nhập vào hệ thống ngay để xem chi tiết dự án và bắt đầu làm việc.
+                            </p>
+                            
+                            <!-- Button -->
+                            <table role=""presentation"" style=""margin: 30px 0; width: 100%;"">
+                                <tr>
+                                    <td align=""center"">
+                                        <a href=""{loginLink}"" style=""display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(67, 233, 123, 0.3);"">
+                                            🚀 Đăng nhập và Bắt đầu
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                     
