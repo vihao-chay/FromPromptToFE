@@ -1,64 +1,150 @@
-// Đảm bảo bạn đã cài đặt: npm install @google/generative-ai
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Code generation via Gemini REST API – auto-detect available model via List Models
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const BASE = 'https://generativelanguage.googleapis.com';
 
-export async function generateCode(uiPrompt: string, schemaPrompt: string) {
-  // 1. Kiểm tra API Key
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY. Vui lòng kiểm tra file .env");
-  }
+function extractOneBlock(text: string, lang: string): string {
+  const trimmed = text.trim();
+  const regex = new RegExp(`\`\`\`(?:${lang})?\\s*([\\s\\S]*?)\`\`\``);
+  const m = trimmed.match(regex);
+  if (m) return m[1].trim();
+  return trimmed;
+}
 
-  // 2. Khởi tạo AI
-  const genAI = new GoogleGenerativeAI(apiKey);
-  
-  // Sử dụng model 'gemini-1.5-flash' - đây là định danh chuẩn hiện tại
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-pro",
-    generationConfig: {
-      temperature: 0.7,
+export interface GeneratedCodes {
+  tsx: string;
+  html: string;
+}
+
+export interface GenerateInputs {
+  systemPrompt: string;
+  erdSchema: string;
+  apiSpec: string;
+  designSystem: string;
+}
+
+/** GET list of models; return model ids that support generateContent (id = name without "models/" prefix). */
+async function listModelsSupportingGenerateContent(
+  apiVersion: 'v1' | 'v1beta'
+): Promise<string[]> {
+  const url = `${BASE}/${apiVersion}/models?key=${encodeURIComponent(API_KEY!)}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  const models: Array<{ name?: string; supportedGenerationMethods?: string[] }> = data.models || [];
+  const ids: string[] = [];
+  for (const m of models) {
+    const name = m.name || '';
+    const supported = m.supportedGenerationMethods || [];
+    if (supported.includes('generateContent')) {
+      const id = name.replace(/^models\//, '').trim();
+      if (id) ids.push(id);
     }
+  }
+  return ids;
+}
+
+async function callGeminiREST(
+  apiVersion: 'v1' | 'v1beta',
+  modelId: string,
+  prompt: string
+): Promise<string> {
+  const url = `${BASE}/${apiVersion}/models/${modelId}:generateContent?key=${encodeURIComponent(API_KEY!)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 8192,
+      },
+    }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(JSON.stringify(err.error || { code: res.status, message: res.statusText }));
+  }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (text) return text;
+  throw new Error('No text in response');
+}
 
-  const prompt = `
-    As a world-class senior frontend engineer, generate a React component based on the following:
-    
-    UI Description: ${uiPrompt}
-    Data Schema/Logic: ${schemaPrompt}
-    
-    Requirements:
-    - Use React 18+ and TypeScript.
-    - Use Tailwind CSS for styling.
-    - Provide the complete code for a single file component.
-    - Do not include explanations, just the code block.
-  `;
+export async function generateCodeFromInputs(inputs: GenerateInputs): Promise<GeneratedCodes> {
+  const { systemPrompt, erdSchema, apiSpec, designSystem } = inputs;
+  const errorResult: GeneratedCodes = {
+    tsx: `// Error: Missing VITE_GEMINI_API_KEY. Add it in .env:\n// VITE_GEMINI_API_KEY=your_gemini_api_key`,
+    html: '<!-- Same error: add VITE_GEMINI_API_KEY in .env -->',
+  };
+  if (!API_KEY) return errorResult;
 
-  const MAX_RETRIES = 3;
-  let attempt = 0;
+  const prompt = `You are a senior frontend engineer. Generate the SAME UI in TWO formats at once.
 
-  while (attempt < MAX_RETRIES) {
-    try {
-      // 3. Gọi API tạo nội dung
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+## System Prompt (main instruction)
+${systemPrompt || 'A modern React UI.'}
 
-      return text || '// Error: No code generated';
-      
-    } catch (error: any) {
-      // Kiểm tra lỗi giới hạn lượt gọi (Rate Limit)
-      const isRateLimit = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
-      
-      if (isRateLimit && attempt < MAX_RETRIES - 1) {
-        attempt++;
-        const delayMs = Math.pow(2, attempt) * 2000; 
-        console.warn(`Đang thử lại lần ${attempt}/${MAX_RETRIES} sau ${delayMs}ms do chạm giới hạn...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+## ERD / Schema (DBML)
+${erdSchema || '(none)'}
+
+## API Spec (OpenAPI)
+${apiSpec || '(none)'}
+
+## Design System (JSON)
+${designSystem || '{}'}
+
+OUTPUT EXACTLY TWO CODE BLOCKS in this order (no other text):
+
+1) React + TypeScript (TSX) – one component file, Tailwind CSS, default export.
+   Use this block: \`\`\`tsx
+   ... your TSX code ...
+   \`\`\`
+
+2) Standalone HTML – same layout and style, one full HTML file with <!DOCTYPE html>, use Tailwind via CDN or <style> with same look.
+   Use this block: \`\`\`html
+   ... your HTML code ...
+   \`\`\`
+
+Requirements: Same UI and styling in both; output ONLY these two code blocks, no explanations.`;
+
+  let lastError: unknown = null;
+  for (const apiVersion of ['v1beta', 'v1'] as const) {
+    const modelIds = await listModelsSupportingGenerateContent(apiVersion);
+    const sorted = [...modelIds].sort((a, b) => {
+      if (a.includes('flash') && !b.includes('flash')) return -1;
+      if (!a.includes('flash') && b.includes('flash')) return 1;
+      return 0;
+    });
+    for (const modelId of sorted) {
+      try {
+        const text = await callGeminiREST(apiVersion, modelId, prompt);
+        const tsx = extractOneBlock(text, 'tsx|ts|jsx|js');
+        const htmlBlock = text.match(/```html\s*([\s\S]*?)```/);
+        const html = htmlBlock ? htmlBlock[1].trim() : '';
+        return {
+          tsx: tsx || '// No TSX block in response.',
+          html: html || '<!-- No HTML block in response. -->',
+        };
+      } catch (err) {
+        lastError = err;
         continue;
       }
-
-      console.error("Gemini Generation Error:", error);
-      return `// Error generating code: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
-  return '// Error: Thất bại sau nhiều lần thử lại.';
+
+  const msg = lastError instanceof Error ? lastError.message : String(lastError);
+  return {
+    tsx: `// Error: ${msg}\n// Get key: https://aistudio.google.com/apikey`,
+    html: `<!-- Error: ${msg} -->`,
+  };
+}
+
+/** Legacy: UI + Schema only (used by Preview page). Returns TSX. */
+export async function generateCode(uiPrompt: string, schemaPrompt: string): Promise<string> {
+  const out = await generateCodeFromInputs({
+    systemPrompt: uiPrompt,
+    erdSchema: schemaPrompt,
+    apiSpec: '',
+    designSystem: '{}',
+  });
+  return out.tsx;
 }

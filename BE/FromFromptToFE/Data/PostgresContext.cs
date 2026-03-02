@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FromFromptToFE.Models;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +18,9 @@ public partial class PostgresContext : DbContext
 
     public virtual DbSet<ApiSpec> ApiSpecs { get; set; }
 
+    public virtual DbSet<ApiSpecOutput> ApiSpecOutputs { get; set; }
+
     public virtual DbSet<ChangeLog> ChangeLogs { get; set; }
-
-    public virtual DbSet<DesignSystem> DesignSystems { get; set; }
-
-    public virtual DbSet<GenerateFile> GenerateFiles { get; set; }
-
-    public virtual DbSet<GenerateTask> GenerateTasks { get; set; }
 
     public virtual DbSet<Organization> Organizations { get; set; }
 
@@ -32,17 +28,15 @@ public partial class PostgresContext : DbContext
 
     public virtual DbSet<Page> Pages { get; set; }
 
-    public virtual DbSet<ProjectInput> ProjectInputs { get; set; }
+    public virtual DbSet<Project> Projects { get; set; }
 
     public virtual DbSet<ProjectOutput> ProjectOutputs { get; set; }
-
-    public virtual DbSet<Repository> Repositories { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("Server=aws-1-ap-south-1.pooler.supabase.com;Database=postgres;User Id=postgres.wemxaapnnfbdwwvymzcl;Password=SWD392@Nhom6;TrustServerCertificate=True;");
+        => optionsBuilder.UseNpgsql("Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.wemxaapnnfbdwwvymzcl;Password=SWD392@Nhom6;SSL Mode=Require;Trust Server Certificate=true");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,7 +72,7 @@ public partial class PostgresContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
-            entity.Property(e => e.ProjectInputId).HasColumnName("project_input_id");
+            entity.Property(e => e.ProjectId).HasColumnName("project_id");
             entity.Property(e => e.SpecContent)
                 .HasColumnType("json")
                 .HasColumnName("spec_content");
@@ -86,9 +80,35 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("spec_type");
 
-            entity.HasOne(d => d.ProjectInput).WithMany(p => p.ApiSpecs)
-                .HasForeignKey(d => d.ProjectInputId)
-                .HasConstraintName("api_specs_project_input_id_fkey");
+            entity.HasOne(d => d.Project).WithMany(p => p.ApiSpecs)
+                .HasForeignKey(d => d.ProjectId)
+                .HasConstraintName("api_specs_project_id_fkey");
+        });
+
+        modelBuilder.Entity<ApiSpecOutput>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("api_spec_outputs_pkey");
+
+            entity.ToTable("api_spec_outputs");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.ApiSpecId).HasColumnName("api_spec_id");
+            entity.Property(e => e.Content)
+                .HasColumnType("json")
+                .HasColumnName("content");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.Version)
+                .HasColumnType("character varying")
+                .HasColumnName("version");
+
+            entity.HasOne(d => d.ApiSpec).WithMany(p => p.ApiSpecOutputs)
+                .HasForeignKey(d => d.ApiSpecId)
+                .HasConstraintName("api_spec_outputs_api_spec_id_fkey");
         });
 
         modelBuilder.Entity<ChangeLog>(entity =>
@@ -121,101 +141,6 @@ public partial class PostgresContext : DbContext
             entity.HasOne(d => d.Organization).WithMany(p => p.ChangeLogs)
                 .HasForeignKey(d => d.OrganizationId)
                 .HasConstraintName("change_logs_organization_id_fkey");
-        });
-
-        modelBuilder.Entity<DesignSystem>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("design_systems_pkey");
-
-            entity.ToTable("design_systems");
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("id");
-            entity.Property(e => e.Config)
-                .HasColumnType("json")
-                .HasColumnName("config");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.Name)
-                .HasColumnType("character varying")
-                .HasColumnName("name");
-            entity.Property(e => e.ProjectInputId).HasColumnName("project_input_id");
-
-            entity.HasOne(d => d.ProjectInput).WithMany(p => p.DesignSystems)
-                .HasForeignKey(d => d.ProjectInputId)
-                .HasConstraintName("design_systems_project_input_id_fkey");
-        });
-
-        modelBuilder.Entity<GenerateFile>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("generate_files_pkey");
-
-            entity.ToTable("generate_files");
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("id");
-            entity.Property(e => e.ContentHash)
-                .HasColumnType("character varying")
-                .HasColumnName("content_hash");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.FilePath)
-                .HasColumnType("character varying")
-                .HasColumnName("file_path");
-            entity.Property(e => e.GenerateTaskId).HasColumnName("generate_task_id");
-            entity.Property(e => e.Language)
-                .HasColumnType("character varying")
-                .HasColumnName("language");
-            entity.Property(e => e.PageId).HasColumnName("page_id");
-            entity.Property(e => e.RepositoryId).HasColumnName("repository_id");
-
-            entity.HasOne(d => d.GenerateTask).WithMany(p => p.GenerateFiles)
-                .HasForeignKey(d => d.GenerateTaskId)
-                .HasConstraintName("generate_files_generate_task_id_fkey");
-
-            entity.HasOne(d => d.Page).WithMany(p => p.GenerateFiles)
-                .HasForeignKey(d => d.PageId)
-                .HasConstraintName("generate_files_page_id_fkey");
-
-            entity.HasOne(d => d.Repository).WithMany(p => p.GenerateFiles)
-                .HasForeignKey(d => d.RepositoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("generate_files_repository_id_fkey");
-        });
-
-        modelBuilder.Entity<GenerateTask>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("generate_tasks_pkey");
-
-            entity.ToTable("generate_tasks");
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("id");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.ProjectOutputId).HasColumnName("project_output_id");
-            entity.Property(e => e.Status)
-                .HasColumnType("character varying")
-                .HasColumnName("status");
-            entity.Property(e => e.TaskType)
-                .HasColumnType("character varying")
-                .HasColumnName("task_type");
-            entity.Property(e => e.ValidationResult)
-                .HasColumnType("json")
-                .HasColumnName("validation_result");
-
-            entity.HasOne(d => d.ProjectOutput).WithMany(p => p.GenerateTasks)
-                .HasForeignKey(d => d.ProjectOutputId)
-                .HasConstraintName("generate_tasks_project_output_id_fkey");
         });
 
         modelBuilder.Entity<Organization>(entity =>
@@ -290,7 +215,6 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("page_type");
             entity.Property(e => e.ProjectOutputId).HasColumnName("project_output_id");
-            entity.Property(e => e.RepositoryId).HasColumnName("repository_id");
             entity.Property(e => e.Route)
                 .HasColumnType("character varying")
                 .HasColumnName("route");
@@ -298,17 +222,13 @@ public partial class PostgresContext : DbContext
             entity.HasOne(d => d.ProjectOutput).WithMany(p => p.Pages)
                 .HasForeignKey(d => d.ProjectOutputId)
                 .HasConstraintName("pages_project_output_id_fkey");
-
-            entity.HasOne(d => d.Repository).WithMany(p => p.Pages)
-                .HasForeignKey(d => d.RepositoryId)
-                .HasConstraintName("pages_repository_id_fkey");
         });
 
-        modelBuilder.Entity<ProjectInput>(entity =>
+        modelBuilder.Entity<Project>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("project_inputs_pkey");
+            entity.HasKey(e => e.Id).HasName("projects_pkey");
 
-            entity.ToTable("project_inputs");
+            entity.ToTable("projects");
 
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("gen_random_uuid()")
@@ -327,11 +247,16 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.ProjectType)
                 .HasColumnType("character varying")
                 .HasColumnName("project_type");
+            entity.Property(e => e.RepoUrl)
+                .HasColumnType("character varying")
+                .HasColumnName("repo_url");
             entity.Property(e => e.SystemPrompt).HasColumnName("system_prompt");
+            entity.Property(e => e.GeneratedTsx).HasColumnType("text").HasColumnName("generated_tsx");
+            entity.Property(e => e.GeneratedHtml).HasColumnType("text").HasColumnName("generated_html");
 
-            entity.HasOne(d => d.Organization).WithMany(p => p.ProjectInputs)
+            entity.HasOne(d => d.Organization).WithMany(p => p.Projects)
                 .HasForeignKey(d => d.OrganizationId)
-                .HasConstraintName("project_inputs_organization_id_fkey");
+                .HasConstraintName("projects_organization_id_fkey");
         });
 
         modelBuilder.Entity<ProjectOutput>(entity =>
@@ -347,7 +272,7 @@ public partial class PostgresContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
-            entity.Property(e => e.ProjectInputId).HasColumnName("project_input_id");
+            entity.Property(e => e.ProjectId).HasColumnName("project_id");
             entity.Property(e => e.Status)
                 .HasColumnType("character varying")
                 .HasColumnName("status");
@@ -356,42 +281,13 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("version");
 
-            entity.HasOne(d => d.ProjectInput).WithMany(p => p.ProjectOutputs)
-                .HasForeignKey(d => d.ProjectInputId)
-                .HasConstraintName("project_outputs_project_input_id_fkey");
+            entity.HasOne(d => d.Project).WithMany(p => p.ProjectOutputs)
+                .HasForeignKey(d => d.ProjectId)
+                .HasConstraintName("project_outputs_project_id_fkey");
 
             entity.HasOne(d => d.TriggeredByNavigation).WithMany(p => p.ProjectOutputs)
                 .HasForeignKey(d => d.TriggeredBy)
                 .HasConstraintName("project_outputs_triggered_by_fkey");
-        });
-
-        modelBuilder.Entity<Repository>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("repositories_pkey");
-
-            entity.ToTable("repositories");
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("gen_random_uuid()")
-                .HasColumnName("id");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
-            entity.Property(e => e.FrontendFramework)
-                .HasColumnType("character varying")
-                .HasColumnName("frontend_framework");
-            entity.Property(e => e.GitUrl)
-                .HasColumnType("character varying")
-                .HasColumnName("git_url");
-            entity.Property(e => e.Name)
-                .HasColumnType("character varying")
-                .HasColumnName("name");
-            entity.Property(e => e.ProjectInputId).HasColumnName("project_input_id");
-
-            entity.HasOne(d => d.ProjectInput).WithMany(p => p.Repositories)
-                .HasForeignKey(d => d.ProjectInputId)
-                .HasConstraintName("repositories_project_input_id_fkey");
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -420,6 +316,10 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.GoogleId)
                 .HasColumnType("character varying")
                 .HasColumnName("google_id");
+            entity.Property(e => e.IsAdmin)
+                .HasDefaultValue(false)
+                .HasColumnName("is_admin");
+
             entity.Property(e => e.IsVerified)
                 .HasDefaultValue(false)
                 .HasColumnName("is_verified");
@@ -433,6 +333,18 @@ public partial class PostgresContext : DbContext
                 .HasDefaultValueSql("'local'::character varying")
                 .HasColumnType("character varying")
                 .HasColumnName("provider");
+            entity.Property(e => e.RefreshToken)
+                .HasColumnType("character varying")
+                .HasColumnName("refresh_token");
+            entity.Property(e => e.RefreshTokenExpires)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("refresh_token_expires");
+            entity.Property(e => e.ResetToken)
+                .HasColumnType("character varying")
+                .HasColumnName("reset_token");
+            entity.Property(e => e.ResetTokenExpires)
+                .HasColumnType("timestamp without time zone")
+                .HasColumnName("reset_token_expires");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnType("timestamp without time zone")
@@ -440,18 +352,6 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.VerifyToken)
                 .HasColumnType("character varying")
                 .HasColumnName("verify_token");
-            entity.Property(e => e.ResetToken)
-                .HasColumnType("character varying")
-                .HasColumnName("reset_token");
-            entity.Property(e => e.ResetTokenExpires)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("reset_token_expires");
-            entity.Property(e => e.RefreshToken)
-                .HasColumnType("character varying")
-                .HasColumnName("refresh_token");
-            entity.Property(e => e.RefreshTokenExpires)
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("refresh_token_expires");
         });
 
         OnModelCreatingPartial(modelBuilder);

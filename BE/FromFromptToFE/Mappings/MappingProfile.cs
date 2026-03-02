@@ -4,6 +4,7 @@ using FromFromptToFE.DTOs.Auth;
 using FromFromptToFE.DTOs;
 using FromFromptToFE.Enums;
 using FromFromptToFE.Models;
+using System.Text.Json;
 
 namespace FromFromptToFE.Mappings
 {
@@ -37,6 +38,74 @@ namespace FromFromptToFE.Mappings
                 .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization.Name))
                 .ForMember(dest => dest.OrganizationPlan, opt => opt.MapFrom(src => src.Organization.Plan))
                 .ForMember(dest => dest.JoinedAt, opt => opt.MapFrom(src => src.CreatedAt));
+
+            // Project mappings
+            // Model (string?) -> DTO (JsonElement?): parse JSON string thành JsonElement
+            CreateMap<Project, ProjectDto>()
+                .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.EntitySchema != null)
+                    {
+                        dest.EntitySchema = JsonDocument.Parse(src.EntitySchema).RootElement;
+                    }
+                });
+
+            // DTO (JsonElement?) -> Model (string?): serialize JsonElement thành JSON string
+            CreateMap<CreateProjectDto, Project>()
+                .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.EntitySchema.HasValue)
+                    {
+                        dest.EntitySchema = src.EntitySchema.Value.GetRawText();
+                    }
+                });
+
+            CreateMap<UpdateProjectDto, Project>()
+                .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.EntitySchema.HasValue)
+                    {
+                        dest.EntitySchema = src.EntitySchema.Value.GetRawText();
+                    }
+                })
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+            // ApiSpec mappings
+            CreateMap<ApiSpec, ApiSpecDto>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent != null)
+                    {
+                        dest.SpecContent = JsonDocument.Parse(src.SpecContent).RootElement;
+                    }
+                });
+
+            CreateMap<CreateApiSpecDto, ApiSpec>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent.HasValue)
+                    {
+                        dest.SpecContent = src.SpecContent.Value.GetRawText();
+                    }
+                });
+
+            CreateMap<UpdateApiSpecDto, ApiSpec>()
+                .ForMember(dest => dest.SpecContent, opt => opt.Ignore())
+                .AfterMap((src, dest) =>
+                {
+                    if (src.SpecContent.HasValue)
+                    {
+                        dest.SpecContent = src.SpecContent.Value.GetRawText();
+                    }
+                })
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<ChangeLog, ChangeLogDto>();
+            CreateMap<CreateChangeLogDto, ChangeLog>();
         }
     }
 }

@@ -17,5 +17,5 @@ public partial class Organization
 
     public virtual ICollection<OrganizationMember> OrganizationMembers { get; set; } = new List<OrganizationMember>();
 
-    public virtual ICollection<ProjectInput> ProjectInputs { get; set; } = new List<ProjectInput>();
+    public virtual ICollection<Project> Projects { get; set; } = new List<Project>();
 }

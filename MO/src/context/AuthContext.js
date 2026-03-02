@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { login as loginService } from "../services/authService";
+import { login as loginService, googleLogin as googleLoginService } from "../services/authService";
 import { useToast } from "./ToastContext";
 
 const AuthContext = createContext();
@@ -32,14 +32,12 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         try {
             const response = await loginService(email, password);
-            // Assuming the backend wraps the data in a 'data' field or returns it directly.
-            // Based on "ResponseEntity<AuthResponseDto>", it likely has a data field.
-            const userData = response.data || response;
+            // Backend returns ResponseEntity with 'content' field
+            const userData = response.content || response.data || response;
 
             setUser(userData);
             await AsyncStorage.setItem("user", JSON.stringify(userData));
 
-            // If there's a token, store it separately if needed, or just rely on user object
             if (userData.token) {
                 await AsyncStorage.setItem("token", userData.token);
             }
@@ -47,6 +45,32 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error(error);
             showToast(error.message || "Login failed. Please try again.", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const googleLogin = async (idToken) => {
+        setIsLoading(true);
+        try {
+            const response = await googleLoginService(idToken);
+            // Backend returns ResponseEntity. 
+            // Handle both camelCase and PascalCase (common in .NET)
+            // ResponseEntity structure: { success: true, message: "...", content: { ... } }
+            const userData = response.content || response.Content || response.data || response.Data || response;
+
+            console.log("[AuthContext] Setting User Data:", JSON.stringify(userData, null, 2));
+            setUser(userData);
+            await AsyncStorage.setItem("user", JSON.stringify(userData));
+
+            const token = userData.token || userData.Token;
+            if (token) {
+                await AsyncStorage.setItem("token", token);
+            }
+            showToast("Google Login successful!", "success");
+        } catch (error) {
+            console.error(error);
+            showToast(error.message || "Google Login failed", "error");
         } finally {
             setIsLoading(false);
         }
@@ -74,7 +98,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, isSplashLoading, login, logout, register }}>
+        <AuthContext.Provider value={{ user, isLoading, isSplashLoading, login, logout, register, googleLogin }}>
             {children}
         </AuthContext.Provider>
     );

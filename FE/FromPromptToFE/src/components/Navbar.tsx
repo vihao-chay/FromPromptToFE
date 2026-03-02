@@ -18,15 +18,21 @@ const Navbar: React.FC = () => {
             <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white font-display">AI Code Gen</h1>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-6">
             <Link
-              className={`text-sm font-semibold transition-colors ${isActive('/') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/"
+              className={`text-sm font-semibold transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+              to="/dashboard"
             >
               Dashboard
             </Link>
             <Link
-              className={`text-sm font-medium transition-colors ${isActive('/github-integration') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+              className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+              to="/change-logs"
+            >
+              Change Logs
+            </Link>
+            <Link
+              className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/github-integration"
             >
               GitHub
@@ -40,9 +46,6 @@ const Navbar: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
             <Link to="/profile" className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20">
               <div className="w-full h-full bg-gradient-to-br from-primary to-purple-600"></div>
             </Link>

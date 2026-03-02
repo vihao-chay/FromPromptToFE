@@ -87,8 +87,7 @@ namespace FromFromptToFE.Services
                 throw new Exception("Tài khoản chưa được xác thực");
             }
 
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;
@@ -103,11 +102,61 @@ namespace FromFromptToFE.Services
             return response;
         }
 
-        public async Task<AuthResponseDto> GoogleLoginAsync(string idToken)
+        public async Task<AuthResponseDto> GoogleLoginAsync(string token)
         {
+            string debugInfo = "";
+            GoogleJsonWebSignature.Payload payload = null;
             try
             {
-                var payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
+                // 1. Try to validate as ID Token
+                payload = await GoogleJsonWebSignature.ValidateAsync(token);
+            }
+            catch (InvalidJwtException ex)
+            {
+                debugInfo += $"ID Token Invalid: {ex.Message}. ";
+
+                // 2. If ID Token validation fails, try to validate as Access Token
+                try 
+                {
+                    using (var httpClient = new HttpClient())
+                    {
+                        // Use Bearer header for better compatibility
+                        httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+                        var userInfoResponse = await httpClient.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+                        
+                        if (userInfoResponse.IsSuccessStatusCode)
+                        {
+                            var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
+                            var googleUser = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(userInfoContent);
+                            
+                            payload = new GoogleJsonWebSignature.Payload
+                            {
+                                Email = googleUser.email,
+                                Name = googleUser.name,
+                                Subject = googleUser.sub,
+                                Picture = googleUser.picture
+                            };
+                        }
+                        else
+                        {
+                            var errorContent = await userInfoResponse.Content.ReadAsStringAsync();
+                            debugInfo += $"Access Token API Error: {userInfoResponse.StatusCode} - {errorContent}";
+                        }
+                    }
+                }
+                catch (Exception ex2)
+                {
+                   debugInfo += $"Access Token Exception: {ex2.Message}";
+                }
+            }
+
+            if (payload == null)
+            {
+                 throw new Exception($"Token không hợp lệ. Debug: {debugInfo}");
+            }
+
+            try
+            {
                 var user = await _userRepository.GetByEmailAsync(payload.Email);
 
                 if (user == null)
@@ -133,8 +182,7 @@ namespace FromFromptToFE.Services
                     await _userRepository.UpdateAsync(user);
                 }
 
-                var roles = await _userRepository.GetRolesAsync(user.Id);
-                var role = roles.FirstOrDefault() ?? "User";
+                var role = user.IsAdmin == true ? "Admin" : "User";
 
                 var response = _mapper.Map<AuthResponseDto>(user);
                 response.Role = role;
@@ -148,9 +196,9 @@ namespace FromFromptToFE.Services
 
                 return response;
             }
-            catch (InvalidJwtException)
+            catch (Exception ex)
             {
-                throw new Exception("Token Google không hợp lệ");
+                throw new Exception($"Lỗi xử lý đăng nhập Google: {ex.Message}");
             }
         }
 
@@ -186,8 +234,7 @@ namespace FromFromptToFE.Services
             await _userRepository.UpdateAsync(user);
 
             // Generate Token for Auto-Login
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;
@@ -253,8 +300,7 @@ namespace FromFromptToFE.Services
                 return null;
             }
 
-            var roles = await _userRepository.GetRolesAsync(user.Id);
-            var role = roles.FirstOrDefault() ?? "User";
+            var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Role = role;

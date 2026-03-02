@@ -7,7 +7,7 @@ public partial class ProjectOutput
 {
     public Guid Id { get; set; }
 
-    public Guid ProjectInputId { get; set; }
+    public Guid ProjectId { get; set; }
 
     public string? Version { get; set; }
 
@@ -17,11 +17,9 @@ public partial class ProjectOutput
 
     public DateTime? CreatedAt { get; set; }
 
-    public virtual ICollection<GenerateTask> GenerateTasks { get; set; } = new List<GenerateTask>();
-
     public virtual ICollection<Page> Pages { get; set; } = new List<Page>();
 
-    public virtual ProjectInput ProjectInput { get; set; } = null!;
+    public virtual Project Project { get; set; } = null!;
 
     public virtual User? TriggeredByNavigation { get; set; }
 }
