@@ -46,9 +46,6 @@ const Navbar: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-            </button>
             <Link to="/profile" className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20">
               <div className="w-full h-full bg-gradient-to-br from-primary to-purple-600"></div>
             </Link>

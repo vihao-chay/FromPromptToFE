@@ -23,7 +23,30 @@ const ICON_STYLES = [
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240"><rect fill="%23e2e8f0" width="400" height="240"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="14">Project</text></svg>');
 
-const mapApiProjectToProject = (p: { id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string }): Project => {
+const PREVIEW_CACHE_PREFIX = 'project_preview_';
+
+const getLastPreviewHtml = (): string | null => {
+  try { return localStorage.getItem('editor_last_preview_html'); } catch { return null; }
+};
+
+/** Preview for a specific project (from cache when API has no generatedHtml). */
+const getProjectPreviewHtml = (projectId: string): string | null => {
+  try { return localStorage.getItem(PREVIEW_CACHE_PREFIX + projectId); } catch { return null; }
+};
+
+/** Injects overflow:hidden into HTML so iframe preview shows only the top part, no scrollbar. */
+const htmlForPreview = (raw: string): string => {
+  const style = '<style>html,body{overflow:hidden !important;}</style>';
+  if (/<head[\s>]/i.test(raw)) {
+    return raw.replace(/<head([^>]*)>/i, `<head$1>${style}`);
+  }
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">${style}</head><body>${raw}</body></html>`;
+};
+
+const mapApiProjectToProject = (p: {
+  id?: string; Id?: string; name?: string; Name?: string; projectType?: string;
+  createdAt?: string; CreatedAt?: string; generatedHtml?: string; GeneratedHtml?: string;
+}): Project => {
   const status = (p.projectType === 'Generated' || p.projectType === 'Completed') ? ProjectStatus.COMPLETED : (p.projectType === 'Draft' ? ProjectStatus.DRAFT : ProjectStatus.ACTIVE);
   const created = p.createdAt ?? p.CreatedAt ?? '';
   const dateStr = created ? (() => { try { return new Date(created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return created; } })() : '';
@@ -33,6 +56,7 @@ const mapApiProjectToProject = (p: { id?: string; Id?: string; name?: string; Na
     status,
     createdAt: dateStr,
     imageUrl: PLACEHOLDER_IMAGE,
+    generatedHtml: p.generatedHtml ?? p.GeneratedHtml ?? undefined,
   };
 };
 
@@ -80,11 +104,12 @@ const Dashboard: React.FC = () => {
     const orgIds = organizations.map((o) => o.id);
     Promise.all(orgIds.map((id) => projectService.getAll({ organizationId: id, pageIndex: 1, pageSize: 100 })))
       .then((results) => {
-        const raw: Array<{ id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string }> = [];
+        type RawProject = { id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string; generatedHtml?: string; GeneratedHtml?: string };
+        const raw: RawProject[] = [];
         results.forEach((res) => {
-          const c = res.data?.content;
-          const items = c?.TotalItems ?? c?.totalItems ?? [];
-          (Array.isArray(items) ? items : []).forEach((p: Record<string, unknown>) => raw.push(p as typeof raw[0]));
+          const c = res.data?.content as { TotalItems?: RawProject[]; totalItems?: RawProject[] } | undefined;
+          const items = Array.isArray(c?.TotalItems) ? c.TotalItems : Array.isArray(c?.totalItems) ? c.totalItems : [];
+          items.forEach((p) => raw.push(p));
         });
         raw.sort((a, b) => {
           const t1 = a.createdAt ?? a.CreatedAt ?? '';
@@ -258,31 +283,54 @@ const Dashboard: React.FC = () => {
           <div className="col-span-full text-center py-12 text-slate-500 dark:text-slate-400">
             No projects yet. Generate code in the Editor and choose an organization to save — projects will appear here after refresh.
           </div>
-        ) : recentProjects.map((project) => (
-          <div key={project.id} className="group flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/5">
-            <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-900">
-              <div
-                className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
-                style={{ backgroundImage: `url('${project.imageUrl}')` }}
-              ></div>
+        ) : recentProjects.map((project, projectIndex) => {
+          const previewHtml = project.generatedHtml ?? getProjectPreviewHtml(project.id) ?? (projectIndex === 0 ? getLastPreviewHtml() : null);
+          return (
+          <div key={project.id} className="group flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
+            <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-900 rounded-t-2xl">
+              {previewHtml ? (
+                <div className="absolute inset-2 flex items-center justify-center overflow-hidden rounded-lg bg-slate-200/50 dark:bg-slate-800/50 min-h-0">
+                  <div
+                    className="shrink-0 max-w-full max-h-full"
+                    style={{
+                      width: '200%',
+                      height: '200%',
+                      transform: 'scale(0.5)',
+                      transformOrigin: 'center center',
+                    }}
+                  >
+                    <iframe
+                      title="Preview"
+                      srcDoc={htmlForPreview(previewHtml)}
+                      className="w-full h-full border-0 pointer-events-none block rounded max-h-full"
+                      sandbox="allow-same-origin"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url('${project.imageUrl}')` }}
+                ></div>
+              )}
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Link to="/editor" className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
               </div>
             </div>
-            <div className="p-5 flex flex-col gap-2">
-              <div className="flex justify-between items-start">
-                <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors font-display">{project.name}</h4>
-                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(project.status)}`}>
-                  {project.status}
-                </span>
+            <div className="p-4 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-start gap-2">
+                <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug line-clamp-2 flex-1 min-w-0">{project.name}</h4>
+                <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${getStatusColor(project.status)}`}>{project.status}</span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">calendar_today</span>
-                Created on {project.createdAt}
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                {project.createdAt}
               </p>
             </div>
           </div>
-        ))}
+          );
+        })
+        }
       </div>
 
       {/* Activity Table */}
@@ -318,9 +366,9 @@ const Dashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-primary hover:text-primary/70 font-bold text-sm">
+                    <Link to="/editor" className="text-primary hover:text-primary/70 font-bold text-sm">
                       {item.status === ProjectStatus.ARCHIVED ? 'Restore' : item.status === ProjectStatus.IN_PROGRESS ? 'Edit' : 'View'}
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { generateCodeFromInputs } from '../../services/geminiService';
+import { generateCode } from '../../services/codeGenService';
 import organizationService from '../../services/organizationService';
-import projectService, { type ProjectDto } from '../../services/projectService';
-import changeLogService from '../../services/changeLogService';
+import projectService from '../../services/projectService';
+
+const PROMPT_HISTORY_KEY = 'editor_prompt_history';
+const PROMPT_HISTORY_MAX = 15;
 
 const DEFAULT_ERD = `Table users {
   id uuid [pk]
@@ -35,6 +38,25 @@ const DEFAULT_DESIGN_SYSTEM = `{
   "typography": { "fontFamily": "Inter", "scale": 1.25 }
 }`;
 
+const DESIGN_SYSTEM_PRESETS: Record<string, { label: string; json: string }> = {
+  default: {
+    label: 'Default (free)',
+    json: '{"colors":{"primary":"#135bec","background":"#101622"},"typography":{"fontFamily":"Inter","scale":1.25}}',
+  },
+  minimal: {
+    label: 'Minimal (free)',
+    json: '{"colors":{"primary":"#0f172a","background":"#ffffff","muted":"#64748b"},"typography":{"fontFamily":"Inter","scale":1.2}}',
+  },
+  dark: {
+    label: 'Dark (free)',
+    json: '{"colors":{"primary":"#818cf8","background":"#0f172a","surface":"#1e293b"},"typography":{"fontFamily":"Inter","scale":1.25}}',
+  },
+  accent: {
+    label: 'Accent (free)',
+    json: '{"colors":{"primary":"#059669","background":"#f0fdf4","accent":"#10b981"},"typography":{"fontFamily":"Inter","scale":1.2}}',
+  },
+};
+
 type OutputTab = 'code' | 'preview' | 'tasks';
 type Device = 'desktop' | 'tablet' | 'mobile';
 type TaskStatus = 'Pending' | 'Running' | 'Success' | 'Failed';
@@ -46,16 +68,76 @@ const TASK_IDS = [
   { id: '4', label: 'Apply design system' },
 ];
 
-interface OrgOption {
-  id: string;
-  name: string;
+/** Hiển thị từng step trong lúc xử lý (ngắn, lần lượt); xong thì thay bằng steps thật từ API. */
+const STEPS_WHILE_RUNNING_VI: string[] = [
+  'Đang phân tích yêu cầu...',
+  'Đang tạo component...',
+  'Đang sinh code TSX & HTML...',
+  'Đang áp dụng design...',
+];
+const STEPS_WHILE_RUNNING_EN: string[] = [
+  'Analyzing requirements...',
+  'Creating components...',
+  'Generating TSX & HTML...',
+  'Applying design...',
+];
+
+const EDITOR_LABELS = {
+  vi: {
+    generating: 'Đang tạo',
+    completed: 'Đã tạo xong',
+    completedAt: (time: string) => `Đã tạo xong lúc ${time}`,
+    viewCode: 'Xem Code / Preview bên phải.',
+    processing: 'Đang xử lý...',
+    error: 'Có lỗi khi tạo. Thử lại hoặc chỉnh prompt.',
+    doneTitle: 'Xong',
+  },
+  en: {
+    generating: 'Generating',
+    completed: 'Created',
+    completedAt: (time: string) => `Created at ${time}`,
+    viewCode: 'View Code / Preview on the right.',
+    processing: 'Processing...',
+    error: 'Something went wrong. Try again or adjust your prompt.',
+    doneTitle: 'Done',
+  },
+} as const;
+
+/** Detect prompt language: English vs Vietnamese. Prefer EN for common EN words (e.g. "login form") so steps match question. */
+function detectPromptLanguage(prompt: string): 'vi' | 'en' {
+  const t = (prompt || '').trim();
+  if (!t) return 'en';
+  const hasViDiacritics = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(t);
+  const commonEn = /\b(create|login|page|form|button|dashboard|register|forgot|password|sign|email|input|modal|table|list|card)\b/i.test(t);
+  const viOnlyWords = /\b(tạo|trang|đăng\s*nhập|mật\s*khẩu|màu|xanh|làm|nào|hãy|của|bạn|cho|giao\s*diện)\b/i.test(t);
+  if (hasViDiacritics || viOnlyWords) return 'vi';
+  if (commonEn) return 'en';
+  return 'en';
 }
 
+interface PromptHistoryItem {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
+type ChatTurn =
+  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; completedAt?: number; steps?: string[]; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string };
+
 const Editor: React.FC = () => {
-  const [erd, setErd] = useState(DEFAULT_ERD);
-  const [apiSpec, setApiSpec] = useState(DEFAULT_API_SPEC);
+  const [erd, setErd] = useState('');
+  const [apiSpec, setApiSpec] = useState('');
   const [designSystem, setDesignSystem] = useState(DEFAULT_DESIGN_SYSTEM);
-  const [systemPrompt, setSystemPrompt] = useState('Generate a modern dashboard with sidebar navigation and stats cards.');
+  const [selectedDesignPreset, setSelectedDesignPreset] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [openSection, setOpenSection] = useState<'erd' | 'api' | 'design' | null>(null);
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [plusMenuSubmenu, setPlusMenuSubmenu] = useState<'design' | null>(null);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
+  const advancedPanelRef = useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState({ top: 0, left: 0 });
   const [outputTab, setOutputTab] = useState<OutputTab>('code');
   const [device, setDevice] = useState<Device>('desktop');
   const [isSaving, setIsSaving] = useState(false);
@@ -66,119 +148,156 @@ const Editor: React.FC = () => {
   const [tasks, setTasks] = useState<{ id: string; label: string; status: TaskStatus; progress: number }[]>(() =>
     TASK_IDS.map((t) => ({ ...t, status: 'Pending' as TaskStatus, progress: 0 }))
   );
-  const [organizations, setOrganizations] = useState<OrgOption[]>([]);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('');
-  const [projectName, setProjectName] = useState<string>('');
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [hasRunOnce, setHasRunOnce] = useState(false);
+  const [runningStepIndex, setRunningStepIndex] = useState(0);
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
 
-  useEffect(() => {
-    organizationService.getAll().then((res) => {
-      const content = res.data?.content;
-      const list = content?.totalItems ?? content?.TotalItems ?? (Array.isArray(content) ? content : []);
-      const items = Array.isArray(list) ? list : [];
-      setOrganizations(
-        items.map((o: { id?: string; Id?: string; name?: string; Name?: string }) => ({
-          id: String(o.id ?? o.Id ?? ''),
-          name: String(o.name ?? o.Name ?? '').trim() || 'Unnamed organization',
-        }))
-      );
-    }).catch(() => setOrganizations([]));
+  const savePromptToHistory = useCallback((text: string) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    try {
+      const raw = localStorage.getItem(PROMPT_HISTORY_KEY);
+      const list = raw ? (JSON.parse(raw) as PromptHistoryItem[]) : [];
+      const next = [{ id: `${Date.now()}`, text: t, createdAt: Date.now() }, ...list.filter((p: PromptHistoryItem) => p.text !== t)].slice(0, PROMPT_HISTORY_MAX);
+      localStorage.setItem(PROMPT_HISTORY_KEY, JSON.stringify(next));
+    } catch {}
   }, []);
 
+  const hasRunningTurn = chatTurns.some((t) => t.role === 'assistant' && t.status === 'running');
   useEffect(() => {
-    if (!selectedOrganizationId) {
-      setProjects([]);
-      setSelectedProjectId('');
-      return;
+    if (!hasRunningTurn) return;
+    const id = setInterval(() => setRunningStepIndex((i) => Math.min(i + 1, 4)), 1800);
+    return () => clearInterval(id);
+  }, [hasRunningTurn]);
+
+  useEffect(() => {
+    if (!plusMenuOpen) return;
+    const el = plusMenuRef.current;
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      setPopoverStyle({ left: rect.left, top: rect.top - 8 });
     }
-    projectService.getAll({ organizationId: selectedOrganizationId, pageSize: 50 }).then((res) => {
-      const content = res.data?.content;
-      const list = content?.TotalItems ?? content?.totalItems ?? [];
-      const items = Array.isArray(list) ? list : [];
-      setProjects(items.map((p: ProjectDto & { Id?: string; Name?: string; OrganizationId?: string }) => ({
-        id: String(p.id ?? p.Id ?? ''),
-        organizationId: String(p.organizationId ?? p.OrganizationId ?? ''),
-        name: String(p.name ?? p.Name ?? ''),
-        projectType: p.projectType ?? '',
-      })));
-    }).catch(() => setProjects([]));
-  }, [selectedOrganizationId]);
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isPlusButton = plusMenuRef.current?.contains(target);
+      const isInsidePopup = document.getElementById('plus-menu-portal')?.contains(target);
+      if (!isPlusButton && !isInsidePopup) {
+        setPlusMenuOpen(false);
+        setPlusMenuSubmenu(null);
+      }
+    };
+    const t = setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', onDocClick, true); };
+  }, [plusMenuOpen]);
+
+  useEffect(() => {
+    if (!showAdvanced) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const isInsidePanel = advancedPanelRef.current?.contains(target);
+      const isPlusArea = plusMenuRef.current?.contains(target);
+      const isInsidePopup = document.getElementById('plus-menu-portal')?.contains(target);
+      if (!isInsidePanel && !isPlusArea && !isInsidePopup) {
+        setShowAdvanced(false);
+        setOpenSection(null);
+      }
+    };
+    const t = setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', onDocClick, true); };
+  }, [showAdvanced]);
 
   const handleGenerate = async () => {
+    const userText = prompt.trim();
+    if (!userText) return;
+    setHasRunOnce(true);
     setIsSaving(true);
+    const userTurnId = `user-${Date.now()}`;
+    const assistantTurnId = `ast-${Date.now()}`;
+    const initialTasks = TASK_IDS.map((t, i) => ({ ...t, status: (i === 0 ? 'Running' : 'Pending') as TaskStatus, progress: i === 0 ? 20 : 0 }));
+    setRunningStepIndex(0);
+    setChatTurns((prev) => [
+      ...prev,
+      { id: userTurnId, role: 'user', text: userText },
+      { id: assistantTurnId, role: 'assistant', status: 'running', tasks: initialTasks },
+    ]);
     setTasks((prev) => prev.map((t, i) => ({ ...t, status: i === 0 ? 'Running' : 'Pending', progress: i === 0 ? 20 : 0 })));
-    setOutputTab('tasks');
+    setPrompt('');
 
-    sessionStorage.setItem('last_ui_prompt', systemPrompt);
+    sessionStorage.setItem('last_ui_prompt', userText);
     sessionStorage.setItem('last_schema_prompt', erd);
 
     try {
       setTasks((prev) => prev.map((t, i) => (i <= 1 ? { ...t, status: 'Running' as TaskStatus, progress: i === 0 ? 100 : 50 } : t)));
-      const { tsx, html } = await generateCodeFromInputs({
-        systemPrompt,
+      setChatTurns((prev) =>
+        prev.map((turn) =>
+          turn.id === assistantTurnId && turn.role === 'assistant'
+            ? { ...turn, tasks: TASK_IDS.map((t, i) => ({ ...t, status: i <= 1 ? 'Running' : 'Pending', progress: i === 0 ? 100 : 50 })) }
+            : turn
+        )
+      );
+      const result = await generateCode({
+        systemPrompt: userText,
         erdSchema: erd,
         apiSpec,
         designSystem,
       });
+      const { steps, tsx, html } = result;
       setGeneratedTsx(tsx);
       setGeneratedHtml(html);
       const isError = tsx.startsWith('// Error');
-      setTasks((prev) => prev.map((t) => ({ ...t, status: isError ? (t.status === 'Running' ? 'Failed' : t.status) : ('Success' as TaskStatus), progress: isError ? (t.status === 'Running' ? 0 : t.progress) : 100 })));
-      setOutputTab('code');
+      const finalTasks = TASK_IDS.map((t, i) => ({ ...t, status: (isError ? (i === 0 ? 'Failed' : 'Pending') : 'Success') as TaskStatus, progress: isError ? 0 : 100 }));
+      setTasks((prev) => prev.map((t) => ({ ...t, status: isError ? (t.status === 'Running' ? 'Failed' : t.status) : ('Success' as TaskStatus), progress: isError ? 0 : 100 })));
       if (!isError) {
         sessionStorage.setItem('last_generated_code', tsx);
         sessionStorage.setItem('last_generated_html', html);
-        setSaveError(null);
-        setSaveSuccess(false);
-        if (selectedOrganizationId) {
-          const name = projectName.trim() || systemPrompt.slice(0, 80) || 'Generated project';
-          let projectId: string | null = null;
-          try {
-            if (selectedProjectId) {
-              await projectService.update(selectedProjectId, {
-                systemPrompt,
-                entitySchema: erd,
-              });
-              projectId = selectedProjectId;
-              setSaveSuccess(true);
-            } else {
-              const createRes = await projectService.create({
-                organizationId: selectedOrganizationId,
-                name: name.length >= 3 ? name : name + ' project',
-                projectType: 'Generated',
-                systemPrompt,
-                entitySchema: erd,
-              });
-              const created = createRes.data?.content ?? (createRes as { data?: { content?: { id?: string } } }).data?.content;
-              projectId = created?.id ?? (created as { Id?: string })?.Id ?? null;
-              setSaveSuccess(true);
-            }
-            if (projectId) {
-              try {
-                await changeLogService.create({
-                  organizationId: selectedOrganizationId,
-                  entityType: 'Project',
-                  entityId: projectId,
-                  action: selectedProjectId ? 'Update' : 'Create',
-                });
-              } catch {
-                // non-blocking
+        try { localStorage.setItem('editor_last_preview_html', html); localStorage.setItem('editor_last_preview_updated', String(Date.now())); } catch {}
+        savePromptToHistory(userText);
+        setOutputTab('code');
+        organizationService.getAll().then((res) => {
+          const content = res.data?.content as { TotalItems?: { id?: string; Id?: string }[]; totalItems?: { id?: string; Id?: string }[] } | undefined;
+          const list = Array.isArray(content?.TotalItems) ? content.TotalItems : Array.isArray(content?.totalItems) ? content.totalItems : [];
+          const firstId = list[0]?.id ?? list[0]?.Id;
+          if (firstId) {
+            projectService.create({
+              organizationId: String(firstId),
+              name: (userText.slice(0, 80) || 'Generated').trim() || 'Generated',
+              projectType: 'Generated',
+              systemPrompt: userText,
+              entitySchema: erd || undefined,
+              generatedTsx: tsx,
+              generatedHtml: html,
+            }).then((res) => {
+              const created = res.data?.content as { id?: string; Id?: string } | undefined;
+              const projectId = created?.id ?? created?.Id;
+              if (projectId && html) {
+                try { localStorage.setItem('project_preview_' + projectId, html); } catch {}
               }
-            }
-          } catch (e) {
-            setSaveError(e instanceof Error ? e.message : 'Could not save project.');
+            }).catch(() => {});
           }
-        }
-      }
+        }).catch(() => {});
+      } else setOutputTab('tasks');
+      setChatTurns((prev) =>
+        prev.map((turn) =>
+          turn.id === assistantTurnId && turn.role === 'assistant'
+            ? { ...turn, status: isError ? 'error' : 'done', completedAt: isError ? undefined : Date.now(), steps: steps?.length >= 4 ? steps : undefined, tasks: finalTasks, tsx, html }
+            : turn
+        )
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setGeneratedTsx(`// Error: ${msg}`);
-      setGeneratedHtml(`<!-- Error: ${msg} -->`);
+      const errorTsx = `// Error: ${msg}`;
+      const errorHtml = `<!-- Error: ${msg} -->`;
+      setGeneratedTsx(errorTsx);
+      setGeneratedHtml(errorHtml);
       setTasks((prev) => prev.map((t) => ({ ...t, status: t.status === 'Running' ? 'Failed' : t.status, progress: t.status === 'Running' ? 0 : t.progress })));
-      setOutputTab('code');
+      setChatTurns((prev) =>
+        prev.map((turn) =>
+          turn.id === assistantTurnId && turn.role === 'assistant'
+            ? { ...turn, status: 'error', tasks: TASK_IDS.map((t) => ({ ...t, status: 'Failed' as TaskStatus, progress: 0 })), tsx: errorTsx, html: errorHtml }
+            : turn
+        )
+      );
+      setOutputTab('tasks');
     } finally {
       setIsSaving(false);
     }
@@ -199,103 +318,238 @@ const Editor: React.FC = () => {
     return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
   };
 
+  const hasSuccessOutput = Boolean(generatedTsx && !generatedTsx.startsWith('// Error'));
+  const showOutputPanel = hasRunOnce && !isSaving && hasSuccessOutput;
+  const showTabs = showOutputPanel && (generatedTsx || generatedHtml);
+
   return (
-    <div className="flex flex-col min-h-[calc(100vh-64px)]">
-      {/* Breadcrumbs */}
-      <div className="flex flex-wrap items-center gap-2 text-sm font-display px-6 pt-4 border-b border-slate-200 dark:border-[#282e39] pb-3">
-        <Link className="text-slate-500 dark:text-[#9da6b9] hover:text-primary transition-colors font-medium" to="/dashboard">Projects</Link>
-        <span className="material-symbols-outlined text-slate-400 text-xs">chevron_right</span>
+    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-1.5 text-xs px-4 pt-2 border-b border-slate-200 dark:border-[#282e39] pb-2">
+        <Link className="text-slate-500 dark:text-[#9da6b9] hover:text-primary font-medium" to="/dashboard">Projects</Link>
+        <span className="material-symbols-outlined text-slate-400 text-[10px]">chevron_right</span>
         <span className="text-slate-900 dark:text-white font-medium">Create New Project</span>
       </div>
 
-      {/* Main: Left inputs + Right output */}
-      <div className="flex-1 flex min-h-0 px-6 py-4 gap-6">
-        {/* Left Panel - Organization + 4 input sections */}
-        <div className="w-[42%] flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-          <div className="rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-[#282e39]">
-              <span className="text-xs text-slate-500 dark:text-[#9da6b9] uppercase tracking-wider">Optional</span>
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">Save to organization</span>
-            </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-[#9da6b9] mb-1">Organization</label>
-                <select
-                  value={selectedOrganizationId}
-                  onChange={(e) => setSelectedOrganizationId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-[#3b4354] bg-slate-50 dark:bg-[#161921] text-slate-900 dark:text-white text-sm"
-                >
-                  <option value="">— Don't save to org —</option>
-                  {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
-                  ))}
-                </select>
-              </div>
-              {selectedOrganizationId && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 dark:text-[#9da6b9] mb-1">New project name (or update existing below)</label>
-                    <input
-                      type="text"
-                      value={projectName}
-                      onChange={(e) => setProjectName(e.target.value)}
-                      placeholder="e.g. Dashboard v1"
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-[#3b4354] bg-slate-50 dark:bg-[#161921] text-slate-900 dark:text-white text-sm placeholder:text-slate-400"
-                    />
-                  </div>
-                  {projects.length > 0 && (
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 dark:text-[#9da6b9] mb-1">Or update existing project</label>
-                      <select
-                        value={selectedProjectId}
-                        onChange={(e) => setSelectedProjectId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-[#3b4354] bg-slate-50 dark:bg-[#161921] text-slate-900 dark:text-white text-sm"
-                      >
-                        <option value="">— Create new —</option>
-                        {projects.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+      <div className="flex-1 flex min-h-0">
+        {/* Left: Chat log + input (ChatGPT style) */}
+        <div className={`flex flex-col min-h-0 ${showOutputPanel ? 'w-[48%]' : 'flex-1'} min-w-0 transition-all duration-200`}>
+          <div className="flex-1 flex flex-col min-h-0 max-w-4xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar flex flex-col">
+              {chatTurns.length === 0 && (
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] py-12 px-4">
+                  <div className="rounded-3xl bg-gradient-to-b from-slate-50 to-slate-100/80 dark:from-[#1c1f27] dark:to-[#161921] border border-slate-200/80 dark:border-[#282e39] p-10 max-w-md w-full text-center shadow-sm">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 dark:bg-primary/20 mb-5">
+                      <span className="material-symbols-outlined text-3xl text-primary">auto_awesome</span>
                     </div>
-                  )}
-                </>
+                    <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2 tracking-tight">Describe your idea</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Type in the box below and AI will generate React (TSX) and HTML for you.</p>
+                  </div>
+                </div>
               )}
-              {saveSuccess && <p className="text-xs text-green-600 dark:text-green-400">Saved to organization.</p>}
-              {saveError && <p className="text-xs text-red-500 dark:text-red-400">{saveError}</p>}
+              {chatTurns.map((turn, turnIndex) => {
+                if (turn.role === 'user') {
+                  return (
+                    <div key={turn.id} className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 dark:bg-primary/20 px-4 py-2.5">
+                        <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{turn.text}</p>
+                      </div>
+                    </div>
+                  );
+                }
+                const isThisRunning = turn.role === 'assistant' && turn.status === 'running';
+                const hasRealSteps = turn.status === 'done' && turn.steps && turn.steps.length >= 4;
+                const userPrompt = turnIndex > 0 && chatTurns[turnIndex - 1]?.role === 'user' ? (chatTurns[turnIndex - 1] as { text: string }).text : '';
+                const lang = detectPromptLanguage(userPrompt);
+                const labels = EDITOR_LABELS[lang];
+                const stepsWhileRunning = lang === 'vi' ? STEPS_WHILE_RUNNING_VI : STEPS_WHILE_RUNNING_EN;
+                const stepTexts = hasRealSteps ? turn.steps!.slice(0, 4) : stepsWhileRunning;
+                const visibleCount = hasRealSteps ? 4 : (isThisRunning ? Math.min(runningStepIndex + 1, 4) : 0);
+                const completedTime = turn.status === 'done' && turn.completedAt != null
+                  ? new Date(turn.completedAt).toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: lang === 'en' })
+                  : '';
+                return (
+                  <div key={turn.id} className="flex justify-start">
+                    <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-slate-100 dark:bg-[#1c1f27] border border-slate-200 dark:border-[#282e39] px-4 py-3">
+                      {(turn.status === 'running' || turn.status === 'done') && (
+                        <>
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                            {turn.status === 'running' ? labels.generating : (completedTime ? labels.completedAt(completedTime) : labels.completed)}
+                          </p>
+                          <div className="space-y-4">
+                            {stepTexts.slice(0, visibleCount).map((paragraph, i) => {
+                              const isDone = turn.status === 'done' || (isThisRunning && i < runningStepIndex) || (isThisRunning && runningStepIndex >= 4);
+                              const isCurrent = isThisRunning && i === runningStepIndex && runningStepIndex < 4;
+                              return (
+                                <div key={i} className="flex gap-2">
+                                  <span className="flex-shrink-0 mt-0.5">
+                                    {isDone ? (
+                                      <span className="text-primary" title={labels.doneTitle}>
+                                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
+                                    )}
+                                  </span>
+                                  <p className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap min-w-0 ${isCurrent ? 'text-slate-700 dark:text-slate-200' : ''}`}>
+                                    {paragraph}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {turn.status === 'running' && (
+                            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-[#282e39]">
+                              <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">{labels.processing}</span>
+                            </div>
+                          )}
+                          {turn.status === 'done' && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">{labels.viewCode}</p>
+                          )}
+                        </>
+                      )}
+                      {turn.status === 'error' && (
+                        <p className="text-sm text-red-500 dark:text-red-400">
+                          {turn.tsx?.replace(/^\/\/\s*Error:\s*/i, '').trim() || labels.error}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Input: + bên trái, placeholder giữa, nút gửi bên phải */}
+            <div className="p-4 pt-0">
+              {showAdvanced && openSection && (
+                <div ref={advancedPanelRef} className="mb-3 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] p-3 max-h-[280px] overflow-y-auto custom-scrollbar">
+                  {openSection === 'erd' && <SectionCard title="ERD / Schema" subtitle="DBML" value={erd} onChange={setErd} placeholder="Tables..." />}
+                  {openSection === 'api' && <SectionCard title="API Specs" subtitle="OpenAPI" value={apiSpec} onChange={setApiSpec} placeholder="OpenAPI..." />}
+                  {openSection === 'design' && <SectionCard title="Design System" subtitle="JSON" value={designSystem} onChange={setDesignSystem} placeholder="Colors..." />}
+                </div>
+              )}
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-sm overflow-visible focus-within:ring-2 focus-within:ring-primary/30 min-h-[48px] py-1 pl-1 pr-2">
+                <div ref={plusMenuRef} className="relative flex-shrink-0 z-20">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPlusMenuOpen((v) => !v); setPlusMenuSubmenu(null); }}
+                    className={`flex-shrink-0 p-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#161921] transition-colors ${plusMenuOpen ? 'text-primary bg-primary/5' : ''}`}
+                    title="Add ERD, API Spec, or Design System"
+                  >
+                    <span className="material-symbols-outlined text-[24px]">add</span>
+                  </button>
+                  {plusMenuOpen && createPortal(
+                    <div
+                      id="plus-menu-portal"
+                      className="fixed z-[100] w-60 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-lg py-1 transform -translate-y-full"
+                      style={{ left: popoverStyle.left, top: popoverStyle.top }}
+                    >
+                      {!plusMenuSubmenu ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenSection('erd'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">schema</span>
+                            ERD / Schema
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenSection('api'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">api</span>
+                            API Spec
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPlusMenuSubmenu('design')}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px] text-slate-500">palette</span>
+                            Design System
+                            <span className="material-symbols-outlined text-[16px] ml-auto text-slate-400">chevron_right</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setPlusMenuSubmenu(null)}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                            Back
+                          </button>
+                          <div className="border-t border-slate-200 dark:border-[#282e39] my-1" />
+                          {Object.entries(DESIGN_SYSTEM_PRESETS).map(([id, { label, json }]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => { try { setDesignSystem(JSON.stringify(JSON.parse(json), null, 2)); } catch { setDesignSystem(json); } setSelectedDesignPreset(id); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                            >
+                              <span className="material-symbols-outlined text-[20px] text-primary">palette</span>
+                              {label}
+                            </button>
+                          ))}
+                          <div className="border-t border-slate-200 dark:border-[#282e39] my-1" />
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedDesignPreset(null); setDesignSystem(''); setOpenSection('design'); setShowAdvanced(true); setPlusMenuOpen(false); setPlusMenuSubmenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#282e39]"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                            Custom (edit JSON)
+                          </button>
+                        </>
+                      )}
+                    </div>,
+                    document.body
+                  )}
+                </div>
+                {selectedDesignPreset && DESIGN_SYSTEM_PRESETS[selectedDesignPreset] && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-[#3b4354] pl-2.5 pr-1.5 py-1">
+                    <span className="material-symbols-outlined text-primary text-[16px]">palette</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-200">{DESIGN_SYSTEM_PRESETS[selectedDesignPreset].label}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSelectedDesignPreset(null); setDesignSystem(DEFAULT_DESIGN_SYSTEM); }}
+                      className="p-0.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-300 dark:hover:bg-[#3b4354] transition-colors"
+                      aria-label="Remove design system"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
+                  placeholder="Ask anything — e.g. login page, dashboard, form..."
+                  className="flex-1 min-h-[44px] max-h-[48px] resize-none overflow-hidden py-2.5 px-3 text-sm text-slate-900 dark:text-white bg-transparent border-0 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-[#4d576e]"
+                  rows={1}
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={isSaving || !prompt.trim()}
+                  className="flex-shrink-0 p-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Gửi"
+                >
+                  <span className="material-symbols-outlined text-[24px]">send</span>
+                </button>
+              </div>
             </div>
           </div>
-          <SectionCard
-            title="ERD / Schema"
-            subtitle="DBML style"
-            value={erd}
-            onChange={setErd}
-            placeholder="Define tables and relations..."
-          />
-          <SectionCard
-            title="API Specs"
-            subtitle="OpenAPI"
-            value={apiSpec}
-            onChange={setApiSpec}
-            placeholder="OpenAPI YAML/JSON..."
-          />
-          <SectionCard
-            title="Design System"
-            subtitle="JSON"
-            value={designSystem}
-            onChange={setDesignSystem}
-            placeholder="Theme, colors, typography..."
-          />
-          <SectionCard
-            title="System Prompt"
-            subtitle="Instructions for generation"
-            value={systemPrompt}
-            onChange={setSystemPrompt}
-            placeholder="Describe the app to generate..."
-          />
         </div>
 
-        {/* Right Panel - Tabbed output */}
-        <div className="flex-1 flex flex-col rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] overflow-hidden min-w-0">
+        {/* Right: Code / Preview / Tasks (chỉ sau khi đã chạy) */}
+        {showOutputPanel && (
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] overflow-hidden border-l">
           <div className="flex border-b border-slate-200 dark:border-[#282e39]">
             {(['code', 'preview', 'tasks'] as const).map((tab) => (
               <button
@@ -320,8 +574,8 @@ const Editor: React.FC = () => {
 
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {outputTab === 'code' && (
-              <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-[#282e39] bg-slate-50 dark:bg-[#161921]">
+              <div className="flex flex-col min-h-0 flex-1">
+                <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-[#282e39] bg-slate-50 dark:bg-[#161921]">
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -356,10 +610,10 @@ const Editor: React.FC = () => {
                     </Link>
                   </div>
                 </div>
-                <pre className="flex-1 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
+                <pre className="flex-1 min-h-0 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
                   {activeCodeTab === 'tsx'
-                    ? (generatedTsx || '// Click Run to generate TSX + HTML from ERD, API Spec, Design System & System Prompt.')
-                    : (generatedHtml || '<!-- Click Run to generate TSX + HTML. -->')}
+                    ? (generatedTsx || '// Nhập prompt và bấm Gửi để tạo code TSX + HTML.')
+                    : (generatedHtml || '<!-- Nhập prompt và bấm Gửi để tạo code. -->')}
                 </pre>
               </div>
             )}
@@ -425,34 +679,7 @@ const Editor: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Bottom bar: Run + status */}
-      <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#111318]">
-        <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest font-bold text-slate-400 dark:text-slate-600">
-          <span>IDE VERSION: 2.4.0</span>
-          <span>AI ENGINE: GEMINI-3-PRO</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isSaving}
-            className="flex items-center gap-2 min-w-[180px] cursor-pointer rounded-xl h-12 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? (
-              <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
-            ) : (
-              <span className="material-symbols-outlined text-xl">play_arrow</span>
-            )}
-            <span>{isSaving ? 'Running...' : 'Run'}</span>
-          </button>
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-slate-400 dark:text-slate-600">
-            <div className="size-1.5 rounded-full bg-primary" />
-            <span>SYSTEM ONLINE</span>
-            <span className="ml-2">LATENCY: 42MS</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

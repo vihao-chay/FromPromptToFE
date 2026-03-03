@@ -2,17 +2,36 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const BASE = 'https://generativelanguage.googleapis.com';
 
-function extractOneBlock(text: string, lang: string): string {
-  const trimmed = text.trim();
-  const regex = new RegExp(`\`\`\`(?:${lang})?\\s*([\\s\\S]*?)\`\`\``);
-  const m = trimmed.match(regex);
-  if (m) return m[1].trim();
-  return trimmed;
+/** Parse response: get steps from json block, TSX and HTML from their blocks. Never use json as code. */
+function parseGeminiResponse(text: string): { steps: string[]; tsx: string; html: string } {
+  const steps: string[] = [];
+  let tsx = '';
+  let html = '';
+  const blocks = text.split('```');
+  for (let i = 1; i < blocks.length; i += 2) {
+    const block = blocks[i];
+    const firstLineEnd = block.indexOf('\n');
+    const firstLine = (firstLineEnd >= 0 ? block.slice(0, firstLineEnd) : block).trim().toLowerCase();
+    const content = (firstLineEnd >= 0 ? block.slice(firstLineEnd + 1) : '').trim();
+    if (firstLine.startsWith('json')) {
+      try {
+        const parsed = JSON.parse(content) as { steps?: unknown };
+        if (Array.isArray(parsed.steps) && parsed.steps.length >= 4)
+          parsed.steps.slice(0, 4).forEach((s) => steps.push(typeof s === 'string' ? s : String(s)));
+      } catch { /* ignore */ }
+    } else if (/^(tsx|ts|jsx|js|typescript)(\s|$)/.test(firstLine)) {
+      if (!tsx) tsx = content;
+    } else if (firstLine.startsWith('html')) {
+      if (!html) html = content;
+    }
+  }
+  return { steps, tsx, html };
 }
 
 export interface GeneratedCodes {
   tsx: string;
   html: string;
+  steps?: string[];
 }
 
 export interface GenerateInputs {
@@ -56,7 +75,7 @@ async function callGeminiREST(
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.4,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
       },
     }),
   });
@@ -92,19 +111,24 @@ ${apiSpec || '(none)'}
 ## Design System (JSON)
 ${designSystem || '{}'}
 
-OUTPUT EXACTLY TWO CODE BLOCKS in this order (no other text):
+OUTPUT EXACTLY THREE BLOCKS in this order:
 
-1) React + TypeScript (TSX) – one component file, Tailwind CSS, default export.
-   Use this block: \`\`\`tsx
-   ... your TSX code ...
-   \`\`\`
+1) A JSON block with exactly 4 step descriptions in the SAME language as the user's "System Prompt" above (Vietnamese prompt → Vietnamese; English → English). Format:
+\`\`\`json
+{"steps": ["First step.", "Second step.", "Third step.", "Fourth step."]}
+\`\`\`
 
-2) Standalone HTML – same layout and style, one full HTML file with <!DOCTYPE html>, use Tailwind via CDN or <style> with same look.
-   Use this block: \`\`\`html
-   ... your HTML code ...
-   \`\`\`
+2) React + TypeScript (TSX) – one component file, Tailwind CSS, default export. Use comments in the SAME language as the user's prompt. Output COMPLETE full code – do not abbreviate or shorten.
+\`\`\`tsx
+... your full TSX code ...
+\`\`\`
 
-Requirements: Same UI and styling in both; output ONLY these two code blocks, no explanations.`;
+3) Standalone HTML – same layout and style, one full HTML file with <!DOCTYPE html>, Tailwind via CDN or <style>. Use comments in the SAME language as the user's prompt. Output COMPLETE full code – do not abbreviate or shorten.
+\`\`\`html
+... your full HTML code ...
+\`\`\`
+
+Requirements: Same UI and styling in both; same language as the user prompt for steps and all comments; output ONLY these three blocks (json, tsx, html), no other text. Output full script, never truncate.`;
 
   let lastError: unknown = null;
   for (const apiVersion of ['v1beta', 'v1'] as const) {
@@ -117,12 +141,11 @@ Requirements: Same UI and styling in both; output ONLY these two code blocks, no
     for (const modelId of sorted) {
       try {
         const text = await callGeminiREST(apiVersion, modelId, prompt);
-        const tsx = extractOneBlock(text, 'tsx|ts|jsx|js');
-        const htmlBlock = text.match(/```html\s*([\s\S]*?)```/);
-        const html = htmlBlock ? htmlBlock[1].trim() : '';
+        const { steps: parsedSteps, tsx, html } = parseGeminiResponse(text);
         return {
           tsx: tsx || '// No TSX block in response.',
           html: html || '<!-- No HTML block in response. -->',
+          steps: parsedSteps.length >= 4 ? parsedSteps : undefined,
         };
       } catch (err) {
         lastError = err;

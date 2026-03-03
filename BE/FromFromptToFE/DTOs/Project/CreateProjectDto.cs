@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 
 namespace FromFromptToFE.DTOs
 {
@@ -19,9 +18,12 @@ namespace FromFromptToFE.DTOs
 
         public string? SystemPrompt { get; set; }
 
-        public JsonElement? EntitySchema { get; set; }
+        public string? EntitySchema { get; set; }
 
         [Url(ErrorMessage = "URL repository không hợp lệ")]
         public string? RepoUrl { get; set; }
+
+        public string? GeneratedTsx { get; set; }
+        public string? GeneratedHtml { get; set; }
     }
 }

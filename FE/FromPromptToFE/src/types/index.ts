@@ -14,6 +14,7 @@ export interface Project {
   status: ProjectStatus;
   createdAt: string;
   imageUrl: string;
+  generatedHtml?: string;
 }
 
 export interface Activity {
