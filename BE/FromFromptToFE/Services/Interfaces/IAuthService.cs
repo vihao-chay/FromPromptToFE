@@ -14,6 +14,7 @@ namespace FromFromptToFE.Services
         Task<AuthResponseDto?> ResetPasswordAsync(ResetPasswordDto dto);
         Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
         Task<UserDto?> GetCurrentUserAsync(Guid userId);
+        Task<UserDto?> UpdateProfileAsync(Guid userId, UpdateProfileDto dto);
         Task ResendVerificationEmailAsync(ResendVerificationDto dto);
         Task<AuthResponseDto?> RefreshTokenAsync(RefreshTokenDto dto);
     }

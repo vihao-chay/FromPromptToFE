@@ -37,30 +37,25 @@ namespace FromFromptToFE.Mappings
             CreateMap<OrganizationMember, UserOrganizationDto>()
                 .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization.Name))
                 .ForMember(dest => dest.OrganizationPlan, opt => opt.MapFrom(src => src.Organization.Plan))
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role))
                 .ForMember(dest => dest.JoinedAt, opt => opt.MapFrom(src => src.CreatedAt));
 
-            // Project mappings
-            // Model (string?) -> DTO (JsonElement?): parse JSON string thành JsonElement
+            // Project mappings: EntitySchema in DB may be JSON or plain text (DBML) – only parse when valid JSON
             CreateMap<Project, ProjectDto>()
                 .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
                 .AfterMap((src, dest) =>
                 {
-                    if (src.EntitySchema != null)
+                    if (string.IsNullOrEmpty(src.EntitySchema)) return;
+                    try
                     {
-                        dest.EntitySchema = JsonDocument.Parse(src.EntitySchema).RootElement;
+                        var trimmed = src.EntitySchema.Trim();
+                        if ((trimmed.StartsWith("{") && trimmed.EndsWith("}")) || (trimmed.StartsWith("[") && trimmed.EndsWith("]")))
+                            dest.EntitySchema = JsonDocument.Parse(src.EntitySchema).RootElement;
                     }
+                    catch { /* leave EntitySchema null when not valid JSON */ }
                 });
 
-            // DTO (JsonElement?) -> Model (string?): serialize JsonElement thành JSON string
-            CreateMap<CreateProjectDto, Project>()
-                .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
-                .AfterMap((src, dest) =>
-                {
-                    if (src.EntitySchema.HasValue)
-                    {
-                        dest.EntitySchema = src.EntitySchema.Value.GetRawText();
-                    }
-                });
+            CreateMap<CreateProjectDto, Project>();
 
             CreateMap<UpdateProjectDto, Project>()
                 .ForMember(dest => dest.EntitySchema, opt => opt.Ignore())
@@ -106,6 +101,8 @@ namespace FromFromptToFE.Mappings
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
             CreateMap<ChangeLog, ChangeLogDto>();
             CreateMap<CreateChangeLogDto, ChangeLog>();
+
+            CreateMap<Code, CodeDto>();
         }
     }
 }

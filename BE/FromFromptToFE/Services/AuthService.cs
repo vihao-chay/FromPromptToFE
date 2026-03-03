@@ -250,20 +250,15 @@ namespace FromFromptToFE.Services
 
         public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
         {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
+                throw new ArgumentException("New password is required");
+
             var user = await _userRepository.GetByIdAsync(userId);
-            if (user == null || string.IsNullOrEmpty(user.PasswordHash))
-            {
-                return false;
-            }
+            if (user == null) return false;
 
-            if (!PasswordHelper.VerifyPassword(dto.OldPassword, user.PasswordHash))
-            {
-                throw new Exception("Mật khẩu cũ không chính xác");
-            }
-
+            // No OldPassword check: allow change/set password with NewPassword only
             user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
-
             await _userRepository.UpdateAsync(user);
             return true;
         }
@@ -273,6 +268,19 @@ namespace FromFromptToFE.Services
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null) return null;
 
+            return _mapper.Map<UserDto>(user);
+        }
+
+        public async Task<UserDto?> UpdateProfileAsync(Guid userId, UpdateProfileDto dto)
+        {
+            if (dto == null) return null;
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return null;
+
+            if (dto.Name != null) user.Name = dto.Name;
+            if (dto.AvatarUrl != null) user.AvatarUrl = dto.AvatarUrl;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
             return _mapper.Map<UserDto>(user);
         }
 

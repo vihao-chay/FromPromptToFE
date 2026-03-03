@@ -8,6 +8,7 @@ namespace FromFromptToFE.DTOs
         public Guid OrganizationId { get; set; }
         public string OrganizationName { get; set; } = null!;
         public string? OrganizationPlan { get; set; }
+        public string Role { get; set; } = null!;
         public DateTime? JoinedAt { get; set; }
     }
 }

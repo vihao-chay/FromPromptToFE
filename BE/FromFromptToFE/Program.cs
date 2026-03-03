@@ -98,10 +98,14 @@ builder.Services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepo
 builder.Services.AddScoped<IOrganizationMemberService, OrganizationMemberService>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ICodeRepository, CodeRepository>();
+builder.Services.AddScoped<ICodeService, CodeService>();
 builder.Services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
 builder.Services.AddScoped<IApiSpecService, ApiSpecService>();
 builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ICodeGenService, CodeGenService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
