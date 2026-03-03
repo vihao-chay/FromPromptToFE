@@ -1,11 +1,28 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+/** Decode JWT payload without any library — just base64 the middle part */
+const getJwtRole = (): string | null => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    // ASP.NET emits role under the long ClaimTypes.Role key OR short "role"
+    return payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+      ?? payload['role']
+      ?? null;
+  } catch {
+    return null;
+  }
+};
 
 const Navbar: React.FC = () => {
   const location = useLocation();
+  const role = useMemo(getJwtRole, [location.pathname]); // re-check on route change
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
@@ -43,6 +60,20 @@ const Navbar: React.FC = () => {
             >
               Profile
             </Link>
+
+            {/* Admin link — only visible when JWT role === "Admin" */}
+            {role === 'Admin' && (
+              <Link
+                className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive('/admin')
+                    ? 'text-primary'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-primary'
+                  }`}
+                to="/admin"
+              >
+                <span className="material-symbols-outlined text-base">admin_panel_settings</span>
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-3">
