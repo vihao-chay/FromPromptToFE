@@ -285,13 +285,15 @@ const Editor: React.FC = () => {
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setGeneratedTsx(`// Error: ${msg}`);
-      setGeneratedHtml(`<!-- Error: ${msg} -->`);
+      const errorTsx = `// Error: ${msg}`;
+      const errorHtml = `<!-- Error: ${msg} -->`;
+      setGeneratedTsx(errorTsx);
+      setGeneratedHtml(errorHtml);
       setTasks((prev) => prev.map((t) => ({ ...t, status: t.status === 'Running' ? 'Failed' : t.status, progress: t.status === 'Running' ? 0 : t.progress })));
       setChatTurns((prev) =>
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === 'assistant'
-            ? { ...turn, status: 'error', tasks: TASK_IDS.map((t) => ({ ...t, status: 'Failed' as TaskStatus, progress: 0 })) }
+            ? { ...turn, status: 'error', tasks: TASK_IDS.map((t) => ({ ...t, status: 'Failed' as TaskStatus, progress: 0 })), tsx: errorTsx, html: errorHtml }
             : turn
         )
       );
@@ -407,7 +409,9 @@ const Editor: React.FC = () => {
                         </>
                       )}
                       {turn.status === 'error' && (
-                        <p className="text-sm text-red-500 dark:text-red-400">{labels.error}</p>
+                        <p className="text-sm text-red-500 dark:text-red-400">
+                          {turn.tsx?.replace(/^\/\/\s*Error:\s*/i, '').trim() || labels.error}
+                        </p>
                       )}
                     </div>
                   </div>
