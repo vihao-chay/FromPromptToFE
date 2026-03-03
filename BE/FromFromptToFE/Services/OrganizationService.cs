@@ -20,8 +20,10 @@ namespace FromFromptToFE.Services
         public async Task<PagingResult<OrganizationDto>> GetAllOrganizationsAsync(OrganizationFilterDto filter)
         {
             var (items, totalCount) = await _repository.GetPagedAsync(
-                filter.Search, 
-                filter.PageIndex, 
+                filter.Search,
+                filter.SortBy,
+                filter.SortOrder,
+                filter.PageIndex,
                 filter.PageSize);
 
             return new PagingResult<OrganizationDto>

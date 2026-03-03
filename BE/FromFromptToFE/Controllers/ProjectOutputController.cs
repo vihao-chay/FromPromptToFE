@@ -19,17 +19,17 @@ namespace FromFromptToFE.Controllers
         }
 
         /// <summary>
-        /// Lấy danh sách output (phiên bản generate) theo project.
+        /// Lấy danh sách output (phiên bản generate) theo project — search, sort, paging.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetAllByProjectId([FromQuery] Guid projectId)
+        public async Task<IActionResult> GetAll([FromQuery] ProjectOutputFilterDto filter)
         {
-            if (projectId == Guid.Empty)
+            if (filter.ProjectId == Guid.Empty)
             {
-                return ResponseEntity<IEnumerable<ProjectOutputDto>>.Fail("projectId không hợp lệ", 400);
+                return ResponseEntity<PagingResult<ProjectOutputDto>>.Fail("projectId không hợp lệ", 400);
             }
-            var result = await _service.GetAllByProjectIdAsync(projectId);
-            return ResponseEntity<IEnumerable<ProjectOutputDto>>.Ok(result, "Lấy danh sách output thành công");
+            var result = await _service.GetPagedByProjectIdAsync(filter);
+            return ResponseEntity<PagingResult<ProjectOutputDto>>.Ok(result, "Lấy danh sách output thành công");
         }
 
         /// <summary>

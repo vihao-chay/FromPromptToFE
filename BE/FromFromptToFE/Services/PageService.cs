@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using FromFromptToFE.Base;
 using FromFromptToFE.DTOs.Page;
 using FromFromptToFE.Repositories.Interfaces;
 using FromFromptToFE.Services.Interfaces;
@@ -20,7 +21,26 @@ namespace FromFromptToFE.Services
         public async Task<IEnumerable<PageDto>> GetPagesByOutputIdAsync(Guid outputId)
         {
             var pages = await _pageRepo.GetPagesByProjectOutputIdAsync(outputId);
-            return pages.Select(p => new PageDto
+            return pages.Select(MapToDto).ToList();
+        }
+
+        public async Task<PagingResult<PageDto>> GetPagedByOutputIdAsync(PageFilterDto filter)
+        {
+            var (items, totalCount) = await _pageRepo.GetPagedByProjectOutputIdAsync(
+                filter.OutputId, filter.Search, filter.PageType, filter.EntityName,
+                filter.SortBy, filter.SortOrder, filter.PageIndex, filter.PageSize);
+            return new PagingResult<PageDto>
+            {
+                TotalItems = items.Select(MapToDto).ToList(),
+                TotalRow = totalCount,
+                PageIndex = filter.PageIndex,
+                PageSize = filter.PageSize
+            };
+        }
+
+        private static PageDto MapToDto(Models.Page p)
+        {
+            return new PageDto
             {
                 Id = p.Id,
                 ProjectOutputId = p.ProjectOutputId,
@@ -30,7 +50,7 @@ namespace FromFromptToFE.Services
                 GeneratedCode = p.GeneratedCode,
                 FileName = p.FileName,
                 CreatedAt = p.CreatedAt
-            });
+            };
         }
 
         public async Task<PageDto?> UpdatePageAsync(Guid id, UpdatePageDto dto)
@@ -48,17 +68,7 @@ namespace FromFromptToFE.Services
             await _pageRepo.SaveChangesAsync();
 
             var updated = await _pageRepo.GetByIdAsync(id);
-            return updated == null ? null : new PageDto
-            {
-                Id = updated.Id,
-                ProjectOutputId = updated.ProjectOutputId,
-                Route = updated.Route,
-                PageType = updated.PageType,
-                EntityName = updated.EntityName,
-                GeneratedCode = updated.GeneratedCode,
-                FileName = updated.FileName,
-                CreatedAt = updated.CreatedAt
-            };
+            return updated == null ? null : MapToDto(updated);
         }
     }
 }

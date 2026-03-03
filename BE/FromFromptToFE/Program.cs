@@ -45,6 +45,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "FromPromptToFE API", Version = "v1" });
+    c.SchemaFilter<FromFromptToFE.Swagger.SortSchemaFilter>();
+    c.OperationFilter<FromFromptToFE.Swagger.SortParameterOperationFilter>();
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",

@@ -28,15 +28,17 @@ namespace FromFromptToFE.Services
             return _mapper.Map<ChangeLogDto>(entity);
         }
 
-        public async Task<PagingResult<ChangeLogDto>> GetPagedAsync(Guid? organizationId, int pageIndex, int pageSize)
+        public async Task<PagingResult<ChangeLogDto>> GetPagedAsync(ChangeLogFilterDto filter)
         {
-            var (items, totalCount) = await _repository.GetPagedAsync(organizationId, pageIndex, pageSize);
+            var (items, totalCount) = await _repository.GetPagedAsync(
+                filter.Search, filter.OrganizationId, filter.EntityType, filter.Action,
+                filter.SortBy, filter.SortOrder, filter.PageIndex, filter.PageSize);
             return new PagingResult<ChangeLogDto>
             {
                 TotalItems = _mapper.Map<List<ChangeLogDto>>(items),
                 TotalRow = totalCount,
-                PageIndex = pageIndex,
-                PageSize = pageSize
+                PageIndex = filter.PageIndex,
+                PageSize = filter.PageSize
             };
         }
     }

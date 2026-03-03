@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FromFromptToFE.DTOs.Page;
 using FromFromptToFE.DTOs.ProjectOutput;
+using FromFromptToFE.Base;
 using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
 using FromFromptToFE.Repositories.Interfaces;
@@ -30,7 +31,26 @@ namespace FromFromptToFE.Services
         public async Task<IEnumerable<ProjectOutputDto>> GetAllByProjectIdAsync(Guid projectId)
         {
             var outputs = await _projectOutputRepo.GetAllByProjectIdAsync(projectId);
-            return outputs.Select(o => new ProjectOutputDto
+            return outputs.Select(o => MapToDto(o, includePages: false));
+        }
+
+        public async Task<PagingResult<ProjectOutputDto>> GetPagedByProjectIdAsync(ProjectOutputFilterDto filter)
+        {
+            var (items, totalCount) = await _projectOutputRepo.GetPagedByProjectIdAsync(
+                filter.ProjectId, filter.Search, filter.Status, filter.SortBy, filter.SortOrder,
+                filter.PageIndex, filter.PageSize);
+            return new PagingResult<ProjectOutputDto>
+            {
+                TotalItems = items.Select(o => MapToDto(o, includePages: false)).ToList(),
+                TotalRow = totalCount,
+                PageIndex = filter.PageIndex,
+                PageSize = filter.PageSize
+            };
+        }
+
+        private static ProjectOutputDto MapToDto(ProjectOutput o, bool includePages)
+        {
+            var dto = new ProjectOutputDto
             {
                 Id = o.Id,
                 ProjectId = o.ProjectId,
@@ -38,23 +58,10 @@ namespace FromFromptToFE.Services
                 Status = o.Status,
                 TriggeredBy = o.TriggeredBy,
                 CreatedAt = o.CreatedAt
-            });
-        }
-
-        public async Task<ProjectOutputDto?> GetByIdAsync(Guid id)
-        {
-            var output = await _projectOutputRepo.GetProjectOutputWithDetailsAsync(id);
-            if (output == null) return null;
-
-            return new ProjectOutputDto
+            };
+            if (includePages && o.Pages != null)
             {
-                Id = output.Id,
-                ProjectId = output.ProjectId,
-                Version = output.Version,
-                Status = output.Status,
-                TriggeredBy = output.TriggeredBy,
-                CreatedAt = output.CreatedAt,
-                Pages = output.Pages.Select(p => new PageDto
+                dto.Pages = o.Pages.Select(p => new PageDto
                 {
                     Id = p.Id,
                     ProjectOutputId = p.ProjectOutputId,
@@ -64,8 +71,17 @@ namespace FromFromptToFE.Services
                     GeneratedCode = p.GeneratedCode,
                     FileName = p.FileName,
                     CreatedAt = p.CreatedAt
-                }).ToList()
-            };
+                }).ToList();
+            }
+            return dto;
+        }
+
+        public async Task<ProjectOutputDto?> GetByIdAsync(Guid id)
+        {
+            var output = await _projectOutputRepo.GetProjectOutputWithDetailsAsync(id);
+            if (output == null) return null;
+
+            return MapToDto(output, includePages: true);
         }
 
         public async Task<ProjectOutputDto> AddPagesToOutputAsync(Guid outputId, IEnumerable<CreatePageDto> pages)

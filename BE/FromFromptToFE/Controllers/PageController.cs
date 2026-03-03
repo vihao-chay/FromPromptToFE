@@ -20,11 +20,16 @@ namespace FromFromptToFE.Controllers
             _service = service;
         }
 
-        [HttpGet("output/{outputId}")]
-        public async Task<IActionResult> GetPagesByOutputId(Guid outputId)
+        /// <summary>Lấy danh sách pages theo output — search, sort, paging. Dùng query PageFilterDto (outputId, search, pageType, entityName, sortBy, sortOrder, pageIndex, pageSize).</summary>
+        [HttpGet("output")]
+        public async Task<IActionResult> GetPagedByOutputId([FromQuery] PageFilterDto filter)
         {
-            var pages = await _service.GetPagesByOutputIdAsync(outputId);
-            return ResponseEntity<object>.Ok(pages, "Lấy danh sách UI màn hình thành công");
+            if (filter.OutputId == Guid.Empty)
+            {
+                return ResponseEntity<object>.Fail("outputId không hợp lệ", 400);
+            }
+            var result = await _service.GetPagedByOutputIdAsync(filter);
+            return ResponseEntity<object>.Ok(result, "Lấy danh sách UI màn hình thành công");
         }
 
         [HttpPut("{id}")]
