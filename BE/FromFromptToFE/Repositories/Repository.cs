@@ -63,5 +63,10 @@ namespace FromFromptToFE.Repositories
         {
             return await _dbSet.AnyAsync(predicate);
         }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 }

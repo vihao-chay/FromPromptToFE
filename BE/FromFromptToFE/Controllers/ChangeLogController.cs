@@ -31,9 +31,9 @@ namespace FromFromptToFE.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] Guid? organizationId, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 50)
+        public async Task<IActionResult> GetAll([FromQuery] ChangeLogFilterDto filter)
         {
-            var result = await _service.GetPagedAsync(organizationId, pageIndex, pageSize);
+            var result = await _service.GetPagedAsync(filter);
             return ResponseEntity<PagingResult<ChangeLogDto>>.Ok(result, "Lấy danh sách change log thành công");
         }
     }

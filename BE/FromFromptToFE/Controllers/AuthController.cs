@@ -116,11 +116,13 @@ namespace FromFromptToFE.Controllers
             {
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (userIdClaim == null) return Unauthorized();
+                if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
+                    return ResponseEntity<object>.Fail("New password is required", 400);
 
                 var result = await _authService.ChangePasswordAsync(Guid.Parse(userIdClaim), dto);
-                if (!result) return ResponseEntity<object>.Fail("Không tìm thấy người dùng");
+                if (!result) return ResponseEntity<object>.Fail("User not found", 404);
 
-                return ResponseEntity<object>.Ok(null, "Đổi mật khẩu thành công");
+                return ResponseEntity<object>.Ok(null, "Password changed successfully");
             }
             catch (Exception ex)
             {
@@ -140,11 +142,39 @@ namespace FromFromptToFE.Controllers
                 var user = await _authService.GetCurrentUserAsync(Guid.Parse(userIdClaim));
                 if (user == null) return Unauthorized();
 
-                return ResponseEntity<UserDto>.Ok(user, "Lấy thông tin người dùng thành công");
+                return ResponseEntity<UserDto>.Ok(user, "User info retrieved successfully");
             }
             catch (Exception ex)
             {
                 return ResponseEntity<UserDto>.Fail(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("me")]
+        [HttpPatch("me")]
+        public async Task<IActionResult> UpdateMe([FromBody] UpdateProfileDto? dto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
+                    return ResponseEntity<UserDto>.Fail("User identifier not found in token", 401);
+
+                if (dto == null) return ResponseEntity<UserDto>.Fail("Request body is required", 400);
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                    return ResponseEntity<UserDto>.Fail("Invalid user identifier", 401);
+
+                var user = await _authService.UpdateProfileAsync(userId, dto);
+                if (user == null) return ResponseEntity<UserDto>.Fail("User not found", 404);
+
+                return ResponseEntity<UserDto>.Ok(user, "Profile updated successfully");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<UserDto>.Fail(ex.Message, 500);
             }
         }
 

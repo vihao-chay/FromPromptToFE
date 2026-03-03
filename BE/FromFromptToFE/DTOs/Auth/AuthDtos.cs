@@ -64,12 +64,12 @@ namespace FromFromptToFE.DTOs.Auth
 
     public class ChangePasswordDto
     {
-        [Required(ErrorMessage = "Mật khẩu cũ là bắt buộc")]
-        public string OldPassword { get; set; } = null!;
+        /// <summary>Required only for users who already have a password (email sign-up). Omit for Google OAuth users.</summary>
+        public string? OldPassword { get; set; }
 
-        [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
-            ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt")]
+        [Required(ErrorMessage = "New password is required")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
+            ErrorMessage = "Password must be at least 8 characters with uppercase, lowercase, number and special character (@$!%*?&)")]
         public string NewPassword { get; set; } = null!;
     }
 
@@ -77,6 +77,15 @@ namespace FromFromptToFE.DTOs.Auth
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
+        public string? Name { get; set; }
+        public string? AvatarUrl { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        /// <summary>e.g. "local" or "Google" - used to show/hide current password when changing password.</summary>
+        public string? Provider { get; set; }
+    }
+
+    public class UpdateProfileDto
+    {
         public string? Name { get; set; }
         public string? AvatarUrl { get; set; }
     }

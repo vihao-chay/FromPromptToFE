@@ -32,6 +32,28 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<OrganizationMemberDto>.Ok(result, "Thêm thành viên thành công");
         }
 
+        [HttpPost("invite")]
+        public async Task<IActionResult> InviteMember([FromBody] InviteMemberDto inviteDto)
+        {
+            try
+            {
+                var result = await _service.InviteMemberAsync(inviteDto);
+                return ResponseEntity<OrganizationMemberDto>.Ok(result, "Mời thành viên thành công");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return ResponseEntity<OrganizationMemberDto>.Fail(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ResponseEntity<OrganizationMemberDto>.Fail(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<OrganizationMemberDto>.Fail($"Có lỗi xảy ra: {ex.Message}");
+            }
+        }
+
         [HttpPut("{id}/role")]
         public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateMemberRoleDto updateDto)
         {

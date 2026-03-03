@@ -7,6 +7,6 @@ namespace FromFromptToFE.Services.Interfaces
     public interface IChangeLogService
     {
         Task<ChangeLogDto> CreateAsync(CreateChangeLogDto dto, Guid? actorId);
-        Task<PagingResult<ChangeLogDto>> GetPagedAsync(Guid? organizationId, int pageIndex, int pageSize);
+        Task<PagingResult<ChangeLogDto>> GetPagedAsync(ChangeLogFilterDto filter);
     }
 }

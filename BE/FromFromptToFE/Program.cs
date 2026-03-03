@@ -1,5 +1,6 @@
 
 using FromFromptToFE.Data;
+using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
 using FromFromptToFE.Services;
 using FromFromptToFE.Helpers;
@@ -9,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
+using FromFromptToFE.Repositories.Interfaces;
 using FromFromptToFE.Services.Interfaces;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -43,6 +45,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "FromPromptToFE API", Version = "v1" });
+    c.SchemaFilter<FromFromptToFE.Swagger.SortSchemaFilter>();
+    c.OperationFilter<FromFromptToFE.Swagger.SortParameterOperationFilter>();
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -98,11 +102,24 @@ builder.Services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepo
 builder.Services.AddScoped<IOrganizationMemberService, OrganizationMemberService>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ICodeRepository, CodeRepository>();
+builder.Services.AddScoped<ICodeService, CodeService>();
 builder.Services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
 builder.Services.AddScoped<IApiSpecService, ApiSpecService>();
 builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
+
 builder.Services.AddScoped<IAdminService, AdminService>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ICodeGenService, CodeGenService>();
+
+// New ProjectOutput & Page Services
+builder.Services.AddScoped<IProjectOutputRepository, ProjectOutputRepository>();
+builder.Services.AddScoped<IProjectOutputService, ProjectOutputService>();
+builder.Services.AddScoped<IPageRepository, PageRepository>();
+builder.Services.AddScoped<IPageService, PageService>();
+
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));

@@ -34,6 +34,8 @@ public partial class PostgresContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<Code> Codes { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseNpgsql("Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.wemxaapnnfbdwwvymzcl;Password=SWD392@Nhom6;SSL Mode=Require;Trust Server Certificate=true");
@@ -211,6 +213,10 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.EntityName)
                 .HasColumnType("character varying")
                 .HasColumnName("entity_name");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(255)
+                .HasColumnName("file_name");
+            entity.Property(e => e.GeneratedCode).HasColumnName("generated_code");
             entity.Property(e => e.PageType)
                 .HasColumnType("character varying")
                 .HasColumnName("page_type");
@@ -290,6 +296,45 @@ public partial class PostgresContext : DbContext
                 .HasConstraintName("project_outputs_triggered_by_fkey");
         });
 
+        modelBuilder.Entity<Code>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("code_pkey");
+
+            entity.ToTable("code");
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("gen_random_uuid()")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnType("timestamp with time zone")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.RepoName)
+                .HasColumnType("character varying")
+                .HasColumnName("repo_name");
+            entity.Property(e => e.BranchName)
+                .HasColumnType("character varying")
+                .HasColumnName("branch_name");
+            entity.Property(e => e.Description)
+                .HasColumnType("text")
+                .HasColumnName("description");
+            entity.Property(e => e.Status)
+                .HasColumnType("character varying")
+                .HasColumnName("status");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.PrLink)
+                .HasColumnType("character varying")
+                .HasColumnName("pr_link");
+            entity.Property(e => e.DownloadLink)
+                .HasColumnType("character varying")
+                .HasColumnName("download_link");
+            entity.Property(e => e.ProjectName)
+                .HasColumnType("character varying")
+                .HasColumnName("project_name");
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("users_pkey");
@@ -319,7 +364,6 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.IsAdmin)
                 .HasDefaultValue(false)
                 .HasColumnName("is_admin");
-
             entity.Property(e => e.IsVerified)
                 .HasDefaultValue(false)
                 .HasColumnName("is_verified");

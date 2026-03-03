@@ -23,6 +23,8 @@ namespace FromFromptToFE.Services
                 filter.Search,
                 filter.ProjectId,
                 filter.SpecType,
+                filter.SortBy,
+                filter.SortOrder,
                 filter.PageIndex,
                 filter.PageSize);
 

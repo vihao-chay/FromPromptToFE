@@ -17,5 +17,9 @@ public partial class Page
 
     public DateTime? CreatedAt { get; set; }
 
+    public string? GeneratedCode { get; set; }
+
+    public string? FileName { get; set; }
+
     public virtual ProjectOutput ProjectOutput { get; set; } = null!;
 }

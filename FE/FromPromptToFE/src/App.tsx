@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import HomePage from './pages/Home/HomePage';
@@ -24,13 +24,19 @@ import AdminUsers from './pages/Admin/AdminUsers';
 import AdminProjects from './pages/Admin/AdminProjects';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('token'));
+
+  useEffect(() => {
+    const onLogout = () => setIsAuthenticated(false);
+    window.addEventListener('auth-logout', onLogout);
+    return () => window.removeEventListener('auth-logout', onLogout);
+  }, []);
 
   return (
     <BrowserRouter>
       <div className="flex flex-col min-h-screen">
         {isAuthenticated && <Navbar />}
-        <main className="flex-1">
+        <main className="flex-1 bg-slate-50 dark:bg-[#0d0e12] min-h-0">
           <Routes>
             <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
             <Route path="/register" element={<RegisterPage />} />
