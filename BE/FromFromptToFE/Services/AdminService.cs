@@ -61,7 +61,7 @@ namespace FromFromptToFE.Services
                     AvatarUrl = u.AvatarUrl,
                     Provider = u.Provider,
                     IsVerified = u.IsVerified ?? false,
-                    IsAdmin = u.IsAdmin ?? false,
+                    IsAdmin = u.IsAdmin,
                     IsActive = u.IsVerified ?? false, // using IsVerified as active status
                     CreatedAt = u.CreatedAt,
                     UpdatedAt = u.UpdatedAt
