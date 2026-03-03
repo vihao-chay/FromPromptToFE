@@ -102,6 +102,7 @@ builder.Services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
 builder.Services.AddScoped<IApiSpecService, ApiSpecService>();
 builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // Email Service
 builder.Services.Configure<FromFromptToFE.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));

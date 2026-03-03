@@ -19,6 +19,9 @@ import ChangeLogs from './pages/ChangeLogs/ChangeLogs';
 import Repositories from './pages/Repositories/Repositories';
 import ApiKeys from './pages/ApiKeys/ApiKeys';
 import DesignSystems from './pages/DesignSystems/DesignSystems';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import AdminUsers from './pages/Admin/AdminUsers';
+import AdminProjects from './pages/Admin/AdminProjects';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Default to false to show login
@@ -57,6 +60,11 @@ const App: React.FC = () => {
             <Route path="/repositories" element={isAuthenticated ? <Repositories /> : <Navigate to="/login" />} />
             <Route path="/api-keys" element={isAuthenticated ? <ApiKeys /> : <Navigate to="/login" />} />
             <Route path="/design-systems" element={isAuthenticated ? <DesignSystems /> : <Navigate to="/login" />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />} />
+            <Route path="/admin/users" element={isAuthenticated ? <AdminUsers /> : <Navigate to="/login" />} />
+            <Route path="/admin/projects" element={isAuthenticated ? <AdminProjects /> : <Navigate to="/login" />} />
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
