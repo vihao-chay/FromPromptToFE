@@ -44,7 +44,7 @@ const App: React.FC = () => {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-            {/* Public Route: Only for unauthenticated users */}
+            {/* Public Route: Only for unauthenticated users. */}
             <Route
               path="/"
               element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" replace />}
