@@ -1,12 +1,14 @@
 using FromFromptToFE.Base;
 using FromFromptToFE.DTOs;
 using FromFromptToFE.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FromFromptToFE.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CodeController : ControllerBase
 {
     private readonly ICodeService _service;

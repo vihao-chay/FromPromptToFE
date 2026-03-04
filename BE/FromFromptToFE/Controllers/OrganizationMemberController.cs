@@ -1,6 +1,7 @@
 using FromFromptToFE.Base;
 using FromFromptToFE.DTOs;
 using FromFromptToFE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class OrganizationMemberController : ControllerBase
     {
         private readonly IOrganizationMemberService _service;
