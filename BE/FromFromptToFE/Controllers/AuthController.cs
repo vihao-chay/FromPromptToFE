@@ -76,6 +76,20 @@ namespace FromFromptToFE.Controllers
             }
         }
 
+        [HttpPost("github")]
+        public async Task<IActionResult> GitHubLogin([FromBody] GitHubLoginDto dto)
+        {
+            try
+            {
+                var response = await _authService.GitHubLoginAsync(dto.Code);
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập GitHub thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
+            }
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {

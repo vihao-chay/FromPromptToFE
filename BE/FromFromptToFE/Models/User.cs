@@ -19,6 +19,8 @@ public partial class User
 
     public string? GoogleId { get; set; }
 
+    public string? GitHubId { get; set; }
+
     public string? AvatarUrl { get; set; }
 
     public string Provider { get; set; } = null!;
