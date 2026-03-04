@@ -8,6 +8,7 @@ import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
+import GitHubCallback from './pages/Auth/GitHubCallback';
 import Profile from './pages/Dashboard/Profile';
 import Editor from './pages/Editor/Editor';
 import Preview from './pages/Editor/Preview';
@@ -26,12 +27,14 @@ import AdminUsers from './pages/Admin/AdminUsers';
 import AdminProjects from './pages/Admin/AdminProjects';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => !!localStorage.getItem("token"),
+  );
 
   useEffect(() => {
     const onLogout = () => setIsAuthenticated(false);
-    window.addEventListener('auth-logout', onLogout);
-    return () => window.removeEventListener('auth-logout', onLogout);
+    window.addEventListener("auth-logout", onLogout);
+    return () => window.removeEventListener("auth-logout", onLogout);
   }, []);
 
   return (
@@ -40,16 +43,26 @@ const App: React.FC = () => {
         {isAuthenticated && <Navbar />}
         <main className="flex-1 bg-slate-50 dark:bg-[#0d0e12] min-h-0">
           <Routes>
-            <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={() => setIsAuthenticated(true)} />}
+            />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/auth/github/callback" element={<GitHubCallback onLogin={() => setIsAuthenticated(true)} />} />
 
             {/* Public Route: Only for unauthenticated users. */}
             <Route
               path="/"
-              element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" replace />}
+              element={
+                !isAuthenticated ? (
+                  <HomePage />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
             />
 
             {/* Onboarding (no RequireOnboarding wrap): tạo tổ chức → tạo dự án → vào editor */}
@@ -86,9 +99,15 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-slate-500 text-sm font-display">
               <p>© 2026 AI Code Gen. Built for Professional Developers.</p>
               <div className="flex items-center gap-6">
-                <a className="hover:text-primary transition-colors" href="#">Documentation</a>
-                <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
-                <a className="hover:text-primary transition-colors" href="#">Support</a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Documentation
+                </a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Privacy Policy
+                </a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Support
+                </a>
               </div>
             </div>
           </footer>

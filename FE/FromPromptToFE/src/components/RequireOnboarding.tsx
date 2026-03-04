@@ -5,7 +5,7 @@ import projectService, { getContent } from '../services/projectService';
 
 const ONBOARDING_STORAGE_KEY = 'onboardingComplete';
 
-type Status = 'checking' | 'no-org' | 'no-project' | 'ready' | 'error';
+type Status = 'checking' | 'no-org' | 'no-project' | 'ready' | 'error' | 'unauthorized';
 
 /** Always verify against API/DB (JWT). Do not trust sessionStorage — if user has no org in DB, redirect to create org. */
 const RequireOnboarding: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,8 +54,17 @@ const RequireOnboarding: React.FC<{ children: React.ReactNode }> = ({ children }
 
         sessionStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
         setStatus('ready');
-      } catch (_err) {
-        if (!cancelled) setStatus('error');
+      } catch (err) {
+        if (cancelled) return;
+        const statusCode = (err as { response?: { status?: number } })?.response?.status;
+        if (statusCode === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.dispatchEvent(new Event('auth-logout'));
+          setStatus('unauthorized');
+          return;
+        }
+        setStatus('error');
       }
     };
 
@@ -77,6 +86,10 @@ const RequireOnboarding: React.FC<{ children: React.ReactNode }> = ({ children }
 
   if (status === 'no-project' && firstOrgId) {
     return <Navigate to="/new-project" replace state={{ organizationId: firstOrgId, fromOnboarding: true }} />;
+  }
+
+  if (status === 'unauthorized') {
+    return <Navigate to="/login" replace />;
   }
 
   if (status === 'error') {

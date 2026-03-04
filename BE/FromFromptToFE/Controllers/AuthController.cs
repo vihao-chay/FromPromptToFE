@@ -76,6 +76,20 @@ namespace FromFromptToFE.Controllers
             }
         }
 
+        [HttpPost("github")]
+        public async Task<IActionResult> GitHubLogin([FromBody] GitHubLoginDto dto)
+        {
+            try
+            {
+                var response = await _authService.GitHubLoginAsync(dto.Code);
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập GitHub thành công");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
+            }
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
@@ -136,17 +150,21 @@ namespace FromFromptToFE.Controllers
         {
             try
             {
-                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (userIdClaim == null) return Unauthorized();
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
+                    return ResponseEntity<UserDto>.Fail("Missing or invalid token (no user id in token)", 401);
 
                 var user = await _authService.GetCurrentUserAsync(Guid.Parse(userIdClaim));
-                if (user == null) return Unauthorized();
+                if (user == null)
+                    return ResponseEntity<UserDto>.Fail("User not found", 401);
 
                 return ResponseEntity<UserDto>.Ok(user, "User info retrieved successfully");
             }
             catch (Exception ex)
             {
-                return ResponseEntity<UserDto>.Fail(ex.Message);
+                return ResponseEntity<UserDto>.Fail(ex.Message, 500);
             }
         }
 

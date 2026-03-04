@@ -74,6 +74,9 @@ namespace FromFromptToFE.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProjectDto updateDto)
         {
+            if (updateDto == null)
+                return ResponseEntity<bool>.Fail("Request body required", 400);
+
             var result = await _service.UpdateProjectAsync(id, updateDto);
             if (!result)
             {

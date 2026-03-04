@@ -277,7 +277,10 @@ const Editor: React.FC = () => {
         const taskStatus = latest.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
         setTasks(TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: latest.status === 'Success' ? 100 : 0 })));
       }
-    }).catch(() => {});
+    }).catch(() => {
+      setOutputsList([]);
+      setSelectedOutputId(null);
+    });
   }, [projectIdFromUrl, sortOutputsPastToFuture]);
 
   useEffect(() => {

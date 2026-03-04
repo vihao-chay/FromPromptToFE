@@ -366,6 +366,9 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.GoogleId)
                 .HasColumnType("character varying")
                 .HasColumnName("google_id");
+            entity.Property(e => e.GitHubId)
+                .HasColumnType("character varying")
+                .HasColumnName("GitHubId");
             entity.Property(e => e.IsAdmin)
                 .HasDefaultValue(false)
                 .HasColumnName("is_admin");

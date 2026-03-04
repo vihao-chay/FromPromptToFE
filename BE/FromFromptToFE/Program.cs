@@ -75,7 +75,13 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<PostgresContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("ConnectionString")));
 
-// JWT Authentication
+// JWT Authentication (fallback key if appsettings.json has no Jwt:SecretKey)
+var jwtSecret = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+    jwtSecret = "dev_secret_key_at_least_32_chars_long_for_local_only";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "FromPromptToFE";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "FromPromptToFE";
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -85,9 +91,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]))
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+        };
+        options.MapInboundClaims = false;
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var message = string.IsNullOrEmpty(context.Error) ? "Unauthorized" : context.Error;
+                if (!string.IsNullOrEmpty(context.ErrorDescription)) message += "; " + context.ErrorDescription;
+                var body = System.Text.Json.JsonSerializer.Serialize(new { success = false, message, statusCode = 401 });
+                return context.Response.WriteAsync(body);
+            }
         };
     });
 

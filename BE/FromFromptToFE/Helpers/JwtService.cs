@@ -24,8 +24,8 @@ public class JwtService : IJwtAuthService
     public JwtService(IConfiguration configuration, PostgresContext context)
     {
         _key = configuration["Jwt:SecretKey"]; 
-        _issuer = configuration["Jwt:Issuer"];
-        _audience = configuration["Jwt:Audience"];
+        _issuer = configuration["Jwt:Issuer"] ?? "FromPromptToFE";
+        _audience = configuration["Jwt:Audience"] ?? "FromPromptToFE";
         _context = context;
     }
 

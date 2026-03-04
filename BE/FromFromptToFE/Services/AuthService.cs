@@ -4,6 +4,7 @@ using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
 using FromFromptToFE.Helpers;
 using Google.Apis.Auth;
+using Microsoft.Extensions.Configuration;
 
 namespace FromFromptToFE.Services
 {
@@ -13,17 +14,20 @@ namespace FromFromptToFE.Services
         private readonly IMapper _mapper;
         private readonly IJwtAuthService _jwtAuthService;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
         public AuthService(
             IUserRepository userRepository, 
             IMapper mapper, 
             IJwtAuthService jwtAuthService,
-            IEmailService emailService)
+            IEmailService emailService,
+            IConfiguration configuration)
         {
             _userRepository = userRepository;
             _mapper = mapper;
             _jwtAuthService = jwtAuthService;
             _emailService = emailService;
+            _configuration = configuration;
         }
 
         public async Task<User> RegisterAsync(RegisterDto dto)
@@ -199,6 +203,180 @@ namespace FromFromptToFE.Services
             catch (Exception ex)
             {
                 throw new Exception($"Lỗi xử lý đăng nhập Google: {ex.Message}");
+            }
+        }
+
+        public async Task<AuthResponseDto> GitHubLoginAsync(string code)
+        {
+            try
+            {
+                // Step 1: Exchange code for access token
+                string accessToken;
+                using (var httpClient = new HttpClient())
+                {
+                    var clientId = _configuration["GitHub:ClientId"] ?? _configuration["GITHUB_CLIENT_ID"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_ID");
+                    var clientSecret = _configuration["GitHub:ClientSecret"] ?? _configuration["GITHUB_CLIENT_SECRET"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_SECRET");
+
+                    if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+                    {
+                        throw new Exception("GitHub OAuth is not configured. Set GitHub:ClientId and GitHub:ClientSecret in appsettings.json, or set env vars GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.");
+                    }
+
+                    var redirectUri = _configuration["GitHub:RedirectUri"] ?? "http://localhost:5173/auth/github/callback";
+
+                    var tokenRequest = new
+                    {
+                        client_id = clientId,
+                        client_secret = clientSecret,
+                        code = code,
+                        redirect_uri = redirectUri
+                    };
+
+                    httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+                    var tokenResponse = await httpClient.PostAsJsonAsync(
+                        "https://github.com/login/oauth/access_token",
+                        tokenRequest
+                    );
+
+                    var tokenContent = await tokenResponse.Content.ReadAsStringAsync();
+
+                    if (!tokenResponse.IsSuccessStatusCode)
+                    {
+                        throw new Exception($"GitHub token exchange failed: {tokenResponse.StatusCode} - {tokenContent}");
+                    }
+
+                    // GitHub may return JSON (with Accept: application/json) or form-urlencoded
+                    if (tokenContent.TrimStart().StartsWith("{"))
+                    {
+                        var json = System.Text.Json.JsonDocument.Parse(tokenContent).RootElement;
+                        if (json.TryGetProperty("error", out var errEl))
+                        {
+                            var desc = json.TryGetProperty("error_description", out var d) ? d.GetString() : "";
+                            throw new Exception($"GitHub OAuth: {errEl.GetString()} - {desc}");
+                        }
+                        if (!json.TryGetProperty("access_token", out var tokEl))
+                            throw new Exception("Access token not found in response. " + tokenContent);
+                        accessToken = tokEl.GetString() ?? throw new Exception("Access token empty");
+                    }
+                    else
+                    {
+                        var tokenParams = System.Web.HttpUtility.ParseQueryString(tokenContent);
+                        var err = tokenParams["error"];
+                        if (!string.IsNullOrEmpty(err))
+                        {
+                            var desc = tokenParams["error_description"] ?? "";
+                            throw new Exception($"GitHub OAuth: {err} - {desc}");
+                        }
+                        accessToken = tokenParams["access_token"] ?? throw new Exception("Access token not found in response. Ensure GitHub:RedirectUri in appsettings.json matches the callback URL used in the OAuth flow (e.g. http://localhost:5173/auth/github/callback). Response: " + tokenContent);
+                    }
+                }
+
+                // Step 2: Use access token to get user info (rest of the code remains the same)
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", "FromPromptToFE");
+                    
+                    var userInfoResponse = await httpClient.GetAsync("https://api.github.com/user");
+                    
+                    if (!userInfoResponse.IsSuccessStatusCode)
+                    {
+                        var errorContent = await userInfoResponse.Content.ReadAsStringAsync();
+                        throw new Exception($"GitHub API Error: {userInfoResponse.StatusCode} - {errorContent}");
+                    }
+
+                    var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
+                    var githubUser = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(userInfoContent);
+
+                    string? email = githubUser.email;
+                    string? name = githubUser.name ?? githubUser.login; // Use login as fallback
+                    string githubId = githubUser.id.ToString();
+                    string? avatarUrl = githubUser.avatar_url;
+
+                    // If email is null, fetch from emails endpoint
+                    if (string.IsNullOrEmpty(email))
+                    {
+                        var emailsResponse = await httpClient.GetAsync("https://api.github.com/user/emails");
+                        if (emailsResponse.IsSuccessStatusCode)
+                        {
+                            var emailsContent = await emailsResponse.Content.ReadAsStringAsync();
+                            var emails = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(emailsContent);
+                            
+                            // Find the primary verified email
+                            foreach (var emailObj in emails)
+                            {
+                                if (emailObj.primary == true && emailObj.verified == true)
+                                {
+                                    email = emailObj.email;
+                                    break;
+                                }
+                            }
+
+                            // If no primary email, use the first verified one
+                            if (string.IsNullOrEmpty(email))
+                            {
+                                foreach (var emailObj in emails)
+                                {
+                                    if (emailObj.verified == true)
+                                    {
+                                        email = emailObj.email;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(email))
+                    {
+                        throw new Exception("Không thể lấy email từ GitHub. Vui lòng đảm bảo email của bạn được public hoặc cấp quyền user:email.");
+                    }
+
+                    // Find or create user
+                    var user = await _userRepository.GetByEmailAsync(email);
+
+                    if (user == null)
+                    {
+                        user = new User
+                        {
+                            Email = email,
+                            Name = name,
+                            GitHubId = githubId,
+                            AvatarUrl = avatarUrl,
+                            IsVerified = true,
+                            Provider = "github",
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        await _userRepository.AddAsync(user);
+                    }
+                    else if (user.GitHubId == null)
+                    {
+                        user.GitHubId = githubId;
+                        user.AvatarUrl = avatarUrl ?? user.AvatarUrl;
+                        user.UpdatedAt = DateTime.UtcNow;
+                        await _userRepository.UpdateAsync(user);
+                    }
+
+                    var role = user.IsAdmin == true ? "Admin" : "User";
+
+                    var response = _mapper.Map<AuthResponseDto>(user);
+                    response.Role = role;
+                    response.Token = _jwtAuthService.GenerateToken(user, role);
+                    response.RefreshToken = _jwtAuthService.GenerateRefreshToken();
+
+                    user.RefreshToken = response.RefreshToken;
+                    user.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+                    user.UpdatedAt = DateTime.UtcNow;
+                    await _userRepository.UpdateAsync(user);
+
+                    return response;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Lỗi xử lý đăng nhập GitHub: {ex.Message}");
             }
         }
 
