@@ -2,6 +2,7 @@ using FromFromptToFE.Base;
 using FromFromptToFE.DTOs.Page;
 using FromFromptToFE.DTOs.ProjectOutput;
 using FromFromptToFE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -9,6 +10,7 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProjectOutputController : ControllerBase
     {
         private readonly IProjectOutputService _service;
