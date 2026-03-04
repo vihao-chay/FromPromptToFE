@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using FromFromptToFE.Base;
 using FromFromptToFE.DTOs;
+using FromFromptToFE.Enums;
 using FromFromptToFE.Services;
+using FromFromptToFE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,16 +15,23 @@ namespace FromFromptToFE.Controllers
     public class OrganizationController : ControllerBase
     {
         private readonly IOrganizationService _service;
+        private readonly IOrganizationMemberService _memberService;
 
-        public OrganizationController(IOrganizationService service)
+        public OrganizationController(IOrganizationService service, IOrganizationMemberService memberService)
         {
             _service = service;
+            _memberService = memberService;
         }
 
+        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] OrganizationFilterDto filter)
         {
-            var result = await _service.GetAllOrganizationsAsync(filter);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return ResponseEntity<PagingResult<OrganizationDto>>.Fail("Unauthorized", 401);
+
+            var result = await _service.GetOrganizationsByUserAsync(userId, filter);
             return ResponseEntity<PagingResult<OrganizationDto>>.Ok(result, "Lấy danh sách tổ chức thành công");
         }
 
@@ -36,10 +46,24 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<OrganizationDto>.Ok(organization, "Lấy thông tin tổ chức thành công");
         }
 
+        [Authorize]
         [HttpPost]
-        public async Task<IActionResult> Create(CreateOrganizationDto createDto)
+        public async Task<IActionResult> Create([FromBody] CreateOrganizationDto createDto)
         {
+            if (createDto == null)
+                return ResponseEntity<OrganizationDto>.Fail("Request body is required", 400);
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return ResponseEntity<OrganizationDto>.Fail("Unauthorized", 401);
+
             var organization = await _service.CreateOrganizationAsync(createDto);
+            await _memberService.AddMemberAsync(new AddMemberDto
+            {
+                OrganizationId = organization.Id,
+                UserId = userId,
+                Role = OrganizationRole.Owner
+            });
             return ResponseEntity<OrganizationDto>.Ok(organization, "Tạo tổ chức thành công");
         }
 

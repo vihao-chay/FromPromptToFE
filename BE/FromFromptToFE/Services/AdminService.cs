@@ -107,6 +107,7 @@ namespace FromFromptToFE.Services
             var totalRow = await query.CountAsync();
 
             var projects = await query
+                .Include(p => p.ProjectOutputs)
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((filter.PageIndex - 1) * filter.PageSize)
                 .Take(filter.PageSize)
@@ -118,7 +119,7 @@ namespace FromFromptToFE.Services
                     OrganizationId = p.OrganizationId,
                     OrganizationName = p.Organization.Name,
                     CreatedAt = p.CreatedAt,
-                    HasGeneratedCode = p.GeneratedTsx != null || p.GeneratedHtml != null
+                    HasGeneratedCode = p.ProjectOutputs.Any(o => o.GeneratedTsx != null || o.GeneratedHtml != null)
                 })
                 .ToListAsync();
 

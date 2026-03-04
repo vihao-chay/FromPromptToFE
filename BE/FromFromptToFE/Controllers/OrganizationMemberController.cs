@@ -4,6 +4,7 @@ using FromFromptToFE.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FromFromptToFE.Controllers
@@ -72,10 +73,14 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<bool>.Ok(true, "Xóa thành viên khỏi tổ chức thành công");
         }
 
+        /// <summary>Get organizations for the current user (from JWT). Route userId is ignored; always uses DB for JWT user.</summary>
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetMyOrganizations(Guid userId)
         {
-            var result = await _service.GetOrganizationsByUserIdAsync(userId);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var jwtUserId))
+                return ResponseEntity<IEnumerable<UserOrganizationDto>>.Fail("Unauthorized", 401);
+            var result = await _service.GetOrganizationsByUserIdAsync(jwtUserId);
             return ResponseEntity<IEnumerable<UserOrganizationDto>>.Ok(result, "Lấy danh sách tổ chức của người dùng thành công");
         }
     }

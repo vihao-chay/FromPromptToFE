@@ -27,13 +27,16 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           tokenResponse.access_token,
         );
         console.log("Google Login Success", response.data);
-        const token = response.data.content?.token || response.data.token;
+        const content = response.data?.content ?? response.data;
+        const token = content?.token ?? content?.Token ?? response.data?.token;
 
-        if (token) {
+        if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
           localStorage.setItem("token", token);
-          localStorage.setItem("user", JSON.stringify(response.data.content));
+          localStorage.setItem("user", JSON.stringify(content ?? response.data.content));
           onLogin?.();
           navigate("/dashboard");
+        } else {
+          setError("Login succeeded but token invalid. Please try again.");
         }
       } catch (err: unknown) {
         console.error("Google Login Backend Error", err);
@@ -50,7 +53,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   });
 
   const handleGitHubLogin = () => {
-    // Redirect to GitHub OAuth
+    if (!GITHUB_OAUTH_URL) {
+      setError("GitHub OAuth chưa cấu hình. Thêm VITE_GITHUB_CLIENT_ID vào file .env (tạo OAuth App tại https://github.com/settings/developers).");
+      return;
+    }
     window.location.href = GITHUB_OAUTH_URL;
   };
 
@@ -62,16 +68,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     try {
       const response = await authService.login(email, password);
       console.log("Data user:", response.data);
-      const token = response.data.content?.token;
+      const content = response.data?.content ?? response.data;
+      const token = content?.token ?? content?.Token ?? response.data?.token;
 
-      if (token) {
+      if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
         localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(response.data.content)); // Save user info if needed
+        localStorage.setItem("user", JSON.stringify(content ?? response.data.content));
         onLogin?.();
         navigate("/dashboard");
       } else {
-        console.warn("Token not found in expected location:", response.data);
-        setError("Login succeeded but failed to retrieve token.");
+        console.warn("Token not found or invalid:", response.data);
+        setError("Login succeeded but failed to retrieve valid token.");
       }
     } catch (err: unknown) {
       console.error("Login error", err);

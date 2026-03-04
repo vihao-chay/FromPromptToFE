@@ -21,10 +21,6 @@ public partial class Project
 
     public string? RepoUrl { get; set; }
 
-    public string? GeneratedTsx { get; set; }
-
-    public string? GeneratedHtml { get; set; }
-
     public virtual ICollection<ApiSpec> ApiSpecs { get; set; } = new List<ApiSpec>();
 
     public virtual Organization Organization { get; set; } = null!;

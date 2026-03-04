@@ -20,9 +20,8 @@ obj/
 *.sln.iml
 
 # ========================
-# ASP.NET Core
+# ASP.NET Core (appsettings.json = template, được commit; bí mật dùng Development/Local)
 # ========================
-appsettings.json
 appsettings.Development.json
 appsettings.Local.json
 appsettings.Production.json

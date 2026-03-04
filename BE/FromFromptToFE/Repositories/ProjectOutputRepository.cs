@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using FromFromptToFE.Data;
 using FromFromptToFE.Models;
 using FromFromptToFE.Repositories.Interfaces;
@@ -10,6 +12,33 @@ namespace FromFromptToFE.Repositories
     {
         public ProjectOutputRepository(PostgresContext context) : base(context)
         {
+        }
+
+        public async Task<ProjectOutput?> GetLatestByProjectIdAsync(Guid projectId)
+        {
+            return await _dbSet
+                .Where(x => x.ProjectId == projectId)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<IReadOnlyDictionary<Guid, ProjectOutput>> GetLatestByProjectIdsAsync(IEnumerable<Guid> projectIds)
+        {
+            var ids = projectIds.Distinct().ToList();
+            if (ids.Count == 0) return new Dictionary<Guid, ProjectOutput>();
+
+            var outputs = await _dbSet
+                .Where(x => ids.Contains(x.ProjectId))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            var dict = new Dictionary<Guid, ProjectOutput>();
+            foreach (var o in outputs)
+            {
+                if (!dict.ContainsKey(o.ProjectId))
+                    dict[o.ProjectId] = o;
+            }
+            return dict;
         }
 
         public async Task<IEnumerable<ProjectOutput>> GetAllByProjectIdAsync(Guid projectId)

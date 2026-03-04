@@ -214,43 +214,61 @@ namespace FromFromptToFE.Services
                 string accessToken;
                 using (var httpClient = new HttpClient())
                 {
-                    var clientId = _configuration["GitHub:ClientId"];
-                    var clientSecret = _configuration["GitHub:ClientSecret"];
+                    var clientId = _configuration["GitHub:ClientId"] ?? _configuration["GITHUB_CLIENT_ID"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_ID");
+                    var clientSecret = _configuration["GitHub:ClientSecret"] ?? _configuration["GITHUB_CLIENT_SECRET"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_SECRET");
 
-                    if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+                    if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
                     {
-                        throw new Exception("GitHub OAuth is not configured. Please set GitHub:ClientId and GitHub:ClientSecret in appsettings.json");
+                        throw new Exception("GitHub OAuth is not configured. Set GitHub:ClientId and GitHub:ClientSecret in appsettings.json, or set env vars GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.");
                     }
+
+                    var redirectUri = _configuration["GitHub:RedirectUri"] ?? "http://localhost:5173/auth/github/callback";
 
                     var tokenRequest = new
                     {
                         client_id = clientId,
                         client_secret = clientSecret,
-                        code = code
+                        code = code,
+                        redirect_uri = redirectUri
                     };
+
+                    httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
                     var tokenResponse = await httpClient.PostAsJsonAsync(
                         "https://github.com/login/oauth/access_token",
                         tokenRequest
                     );
 
+                    var tokenContent = await tokenResponse.Content.ReadAsStringAsync();
+
                     if (!tokenResponse.IsSuccessStatusCode)
                     {
-                        var errorContent = await tokenResponse.Content.ReadAsStringAsync();
-                        throw new Exception($"Failed to exchange code for access token: {errorContent}");
+                        throw new Exception($"GitHub token exchange failed: {tokenResponse.StatusCode} - {tokenContent}");
                     }
 
-                    var tokenContent = await tokenResponse.Content.ReadAsStringAsync();
-                    
-                    // Parse response (GitHub returns form-urlencoded by default)
-                    var tokenParams = System.Web.HttpUtility.ParseQueryString(tokenContent);
-                    accessToken = tokenParams["access_token"] ?? throw new Exception("Access token not found in response");
-                    
-                    var error = tokenParams["error"];
-                    if (!string.IsNullOrEmpty(error))
+                    // GitHub may return JSON (with Accept: application/json) or form-urlencoded
+                    if (tokenContent.TrimStart().StartsWith("{"))
                     {
-                        var errorDescription = tokenParams["error_description"];
-                        throw new Exception($"GitHub OAuth error: {error} - {errorDescription}");
+                        var json = System.Text.Json.JsonDocument.Parse(tokenContent).RootElement;
+                        if (json.TryGetProperty("error", out var errEl))
+                        {
+                            var desc = json.TryGetProperty("error_description", out var d) ? d.GetString() : "";
+                            throw new Exception($"GitHub OAuth: {errEl.GetString()} - {desc}");
+                        }
+                        if (!json.TryGetProperty("access_token", out var tokEl))
+                            throw new Exception("Access token not found in response. " + tokenContent);
+                        accessToken = tokEl.GetString() ?? throw new Exception("Access token empty");
+                    }
+                    else
+                    {
+                        var tokenParams = System.Web.HttpUtility.ParseQueryString(tokenContent);
+                        var err = tokenParams["error"];
+                        if (!string.IsNullOrEmpty(err))
+                        {
+                            var desc = tokenParams["error_description"] ?? "";
+                            throw new Exception($"GitHub OAuth: {err} - {desc}");
+                        }
+                        accessToken = tokenParams["access_token"] ?? throw new Exception("Access token not found in response. Ensure GitHub:RedirectUri in appsettings.json matches the callback URL used in the OAuth flow (e.g. http://localhost:5173/auth/github/callback). Response: " + tokenContent);
                     }
                 }
 

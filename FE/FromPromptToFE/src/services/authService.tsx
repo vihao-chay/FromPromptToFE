@@ -18,7 +18,9 @@ export interface UserOrganizationDto {
 }
 
 const authService = {
-  getMe: () => api.get<{ content: UserDto }>("/auth/me"),
+  /** Pass token (e.g. after OAuth) to send it explicitly so the request is authenticated. */
+  getMe: (token?: string) =>
+    api.get<{ content: UserDto }>("/auth/me", token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
   updateProfile: (payload: { name?: string; avatarUrl?: string }) =>
     api.patch<{ content: UserDto }>("/auth/me", payload),
   login: (email: string, password: string) => {

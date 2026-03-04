@@ -1,19 +1,23 @@
 using AutoMapper;
 using FromFromptToFE.Base;
 using FromFromptToFE.DTOs;
+using FromFromptToFE.Enums;
 using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
+using FromFromptToFE.Services.Interfaces;
 
 namespace FromFromptToFE.Services
 {
     public class OrganizationService : IOrganizationService
     {
         private readonly IOrganizationRepository _repository;
+        private readonly IOrganizationMemberService _memberService;
         private readonly IMapper _mapper;
 
-        public OrganizationService(IOrganizationRepository repository, IMapper mapper)
+        public OrganizationService(IOrganizationRepository repository, IOrganizationMemberService memberService, IMapper mapper)
         {
             _repository = repository;
+            _memberService = memberService;
             _mapper = mapper;
         }
 
@@ -25,6 +29,47 @@ namespace FromFromptToFE.Services
                 filter.SortOrder,
                 filter.PageIndex,
                 filter.PageSize);
+
+            return new PagingResult<OrganizationDto>
+            {
+                TotalItems = _mapper.Map<List<OrganizationDto>>(items),
+                TotalRow = totalCount,
+                PageIndex = filter.PageIndex,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagingResult<OrganizationDto>> GetOrganizationsByUserAsync(Guid userId, OrganizationFilterDto filter)
+        {
+            var (items, totalCount) = await _repository.GetPagedByUserAsync(
+                userId,
+                filter.Search,
+                filter.SortBy,
+                filter.SortOrder,
+                filter.PageIndex,
+                filter.PageSize);
+
+            if (totalCount == 0)
+            {
+                var orphanOrgs = await _repository.GetOrganizationsWithNoMembersAsync();
+                var firstOrphan = orphanOrgs.FirstOrDefault();
+                if (firstOrphan != null)
+                {
+                    await _memberService.AddMemberAsync(new AddMemberDto
+                    {
+                        OrganizationId = firstOrphan.Id,
+                        UserId = userId,
+                        Role = OrganizationRole.Owner
+                    });
+                    (items, totalCount) = await _repository.GetPagedByUserAsync(
+                        userId,
+                        filter.Search,
+                        filter.SortBy,
+                        filter.SortOrder,
+                        filter.PageIndex,
+                        filter.PageSize);
+                }
+            }
 
             return new PagingResult<OrganizationDto>
             {

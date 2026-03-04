@@ -15,5 +15,7 @@ namespace FromFromptToFE.Services.Interfaces
         Task<ProjectOutputDto> GenerateCodeAsync(Guid projectId, Guid userId);
         /// <summary>FE gửi danh sách pages (từ Gemini) để lưu vào output.</summary>
         Task<ProjectOutputDto> AddPagesToOutputAsync(Guid outputId, IEnumerable<CreatePageDto> pages);
+        /// <summary>Lưu kết quả generate (code, html, prompts, task status, step output) vào project_outputs.</summary>
+        Task<ProjectOutputDto> SaveOutputAsync(Guid projectId, Guid userId, SaveProjectOutputDto dto);
     }
 }

@@ -2,7 +2,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import authService from '@/src/services/authService';
 
-export default function GitHubCallback() {
+interface GitHubCallbackProps {
+  onLogin?: () => void;
+}
+
+export default function GitHubCallback({ onLogin }: GitHubCallbackProps) {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [error, setError] = useState<string>('');
@@ -41,17 +45,37 @@ export default function GitHubCallback() {
                 // Exchange code for access token via backend
                 const response = await authService.loginWithGitHub(code);
                 console.log("GitHub Login Success", response.data);
-                
-                const token = response.data.content?.token || response.data.token;
 
-                if (token) {
-                    localStorage.setItem('token', token);
-                    localStorage.setItem('user', JSON.stringify(response.data.content));
-                    
-                    // Redirect to dashboard
-                    navigate('/dashboard');
+                const data = response.data as Record<string, unknown> | undefined;
+                const content = (data?.content ?? data?.Content ?? data) as Record<string, unknown> | undefined;
+                const inner = (content?.content ?? content?.Content ?? content) as Record<string, unknown> | undefined;
+                const token =
+                    (content?.token as string) ??
+                    (content?.Token as string) ??
+                    (inner?.token as string) ??
+                    (inner?.Token as string) ??
+                    (data?.token as string) ??
+                    (data?.Token as string);
+
+                if (token && typeof token === 'string' && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token.trim())) {
+                    const jwt = token.trim();
+                    localStorage.setItem('token', jwt);
+                    localStorage.setItem('user', JSON.stringify(content ?? data?.content ?? {}));
+                    // Verify with /auth/me using this token so the request is definitely authenticated
+                    try {
+                        await authService.getMe(jwt);
+                    } catch (e) {
+                        const err = e as { response?: { data?: { message?: string }; status?: number } };
+                        const msg = err.response?.data?.message;
+                        console.error('getMe after GitHub login failed', err.response?.status, err.response?.data);
+                        setError(msg ? `Xác thực thất bại: ${msg}` : 'Phiên đăng nhập không xác thực được. Vui lòng thử lại.');
+                        setIsProcessing(false);
+                        return;
+                    }
+                    onLogin?.();
+                    navigate('/dashboard', { replace: true });
                 } else {
-                    throw new Error('Token not found in response');
+                    throw new Error('Token not found or invalid (must be JWT from backend)');
                 }
             } catch (err: unknown) {
                 console.error("GitHub Login Error", err);
