@@ -53,8 +53,9 @@ namespace FromFromptToFE.Services
         public async Task<OrganizationMemberDto> AddMemberAsync(AddMemberDto addDto)
         {
             var member = _mapper.Map<OrganizationMember>(addDto);
+            member.Id = Guid.NewGuid();
             member.CreatedAt = DateTime.UtcNow;
-            
+
             await _repository.AddAsync(member);
             
             // Re-fetch to get User details for the DTO

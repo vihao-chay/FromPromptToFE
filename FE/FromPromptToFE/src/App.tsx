@@ -15,6 +15,8 @@ import GitHubStatus from './pages/Github/GitHubStatus';
 import GitHubIntegration from './pages/Github/GitHubIntegration';
 import OrganizationDetail from './pages/Organization/OrganizationDetail';
 import NewOrganization from './pages/Organization/NewOrganization';
+import NewProject from './pages/Organization/NewProject';
+import RequireOnboarding from './components/RequireOnboarding';
 import ChangeLogs from './pages/ChangeLogs/ChangeLogs';
 import Repositories from './pages/Repositories/Repositories';
 import ApiKeys from './pages/ApiKeys/ApiKeys';
@@ -50,27 +52,30 @@ const App: React.FC = () => {
               element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" replace />}
             />
 
-            {/* Protected Routes */}
+            {/* Onboarding (no RequireOnboarding wrap): tạo tổ chức → tạo dự án → vào editor */}
+            <Route path="/new-organization" element={isAuthenticated ? <NewOrganization /> : <Navigate to="/login" replace />} />
+            <Route path="/new-project" element={isAuthenticated ? <NewProject /> : <Navigate to="/login" replace />} />
+
+            {/* Protected Routes: sau khi đã có tổ chức + dự án (hoặc đã hoàn thành onboarding) */}
             <Route
               path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
+              element={isAuthenticated ? <RequireOnboarding><Dashboard /></RequireOnboarding> : <Navigate to="/login" replace />}
             />
-            <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
-            <Route path="/editor" element={isAuthenticated ? <Editor /> : <Navigate to="/login" />} />
-            <Route path="/preview" element={isAuthenticated ? <Preview /> : <Navigate to="/login" />} />
-            <Route path="/github-integration" element={isAuthenticated ? <GitHubIntegration /> : <Navigate to="/login" />} />
-            <Route path="/github-status" element={isAuthenticated ? <GitHubStatus /> : <Navigate to="/login" />} />
-            <Route path="/organizations/:id" element={isAuthenticated ? <OrganizationDetail /> : <Navigate to="/login" />} />
-            <Route path="/new-organization" element={isAuthenticated ? <NewOrganization /> : <Navigate to="/login" />} />
-            <Route path="/change-logs" element={isAuthenticated ? <ChangeLogs /> : <Navigate to="/login" />} />
-            <Route path="/repositories" element={isAuthenticated ? <Repositories /> : <Navigate to="/login" />} />
-            <Route path="/api-keys" element={isAuthenticated ? <ApiKeys /> : <Navigate to="/login" />} />
-            <Route path="/design-systems" element={isAuthenticated ? <DesignSystems /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={isAuthenticated ? <RequireOnboarding><Profile /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/editor" element={isAuthenticated ? <RequireOnboarding><Editor /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/preview" element={isAuthenticated ? <RequireOnboarding><Preview /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/github-integration" element={isAuthenticated ? <RequireOnboarding><GitHubIntegration /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/github-status" element={isAuthenticated ? <RequireOnboarding><GitHubStatus /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/organizations/:id" element={isAuthenticated ? <RequireOnboarding><OrganizationDetail /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/change-logs" element={isAuthenticated ? <RequireOnboarding><ChangeLogs /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/repositories" element={isAuthenticated ? <RequireOnboarding><Repositories /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/api-keys" element={isAuthenticated ? <RequireOnboarding><ApiKeys /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/design-systems" element={isAuthenticated ? <RequireOnboarding><DesignSystems /></RequireOnboarding> : <Navigate to="/login" />} />
 
             {/* Admin Routes */}
-            <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />} />
-            <Route path="/admin/users" element={isAuthenticated ? <AdminUsers /> : <Navigate to="/login" />} />
-            <Route path="/admin/projects" element={isAuthenticated ? <AdminProjects /> : <Navigate to="/login" />} />
+            <Route path="/admin" element={isAuthenticated ? <RequireOnboarding><AdminDashboard /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/admin/users" element={isAuthenticated ? <RequireOnboarding><AdminUsers /></RequireOnboarding> : <Navigate to="/login" />} />
+            <Route path="/admin/projects" element={isAuthenticated ? <RequireOnboarding><AdminProjects /></RequireOnboarding> : <Navigate to="/login" />} />
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

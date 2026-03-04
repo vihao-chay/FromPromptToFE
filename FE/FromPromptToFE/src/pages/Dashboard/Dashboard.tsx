@@ -23,20 +23,33 @@ const ICON_STYLES = [
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240"><rect fill="%23e2e8f0" width="400" height="240"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="14">Project</text></svg>');
 
+/** Draft: no generated UI yet — show draft placeholder. */
+const DRAFT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240"><rect fill="%231e293b" width="400" height="240"/><text x="50%" y="42%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="16" font-weight="600">Draft</text><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="%23647b8b" font-family="sans-serif" font-size="12">No preview yet</text></svg>'
+);
+/** Completed but no preview data — show generic completed placeholder. */
+const COMPLETED_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240"><rect fill="%231e3a5f" width="400" height="240"/><text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="14">Generated</text></svg>'
+);
+
 const PREVIEW_CACHE_PREFIX = 'project_preview_';
 
-const getLastPreviewHtml = (): string | null => {
-  try { return localStorage.getItem('editor_last_preview_html'); } catch { return null; }
-};
-
-/** Preview for a specific project (from cache when API has no generatedHtml). */
+/** Preview for a specific project only (API or localStorage cache). Do not use editor_last_preview_html for cards. */
 const getProjectPreviewHtml = (projectId: string): string | null => {
   try { return localStorage.getItem(PREVIEW_CACHE_PREFIX + projectId); } catch { return null; }
 };
 
-/** Injects overflow:hidden into HTML so iframe preview shows only the top part, no scrollbar. */
+/** Viewport width for thumbnail — content lays out at this width so preview looks crisp. */
+const PREVIEW_VIEWPORT_WIDTH = 400;
+
+/** Injects viewport + styles so iframe preview looks sharp (no scrollbar, clean thumbnail). */
 const htmlForPreview = (raw: string): string => {
-  const style = '<style>html,body{overflow:hidden !important;}</style>';
+  const style = `<meta name="viewport" content="width=${PREVIEW_VIEWPORT_WIDTH}, initial-scale=1">
+<style>
+  html, body { overflow: hidden !important; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body { width: ${PREVIEW_VIEWPORT_WIDTH}px; min-width: ${PREVIEW_VIEWPORT_WIDTH}px; max-width: ${PREVIEW_VIEWPORT_WIDTH}px; box-sizing: border-box; }
+  * { box-sizing: border-box; }
+</style>`;
   if (/<head[\s>]/i.test(raw)) {
     return raw.replace(/<head([^>]*)>/i, `<head$1>${style}`);
   }
@@ -67,6 +80,10 @@ const Dashboard: React.FC = () => {
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const itemsPerPage = 4;
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<{ type: 'org'; id: string; name: string; plan?: string } | { type: 'project'; id: string; name: string } | null>(null);
+  const [editName, setEditName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'org'; id: string; name: string } | { type: 'project'; id: string; name: string } | null>(null);
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -141,6 +158,38 @@ const Dashboard: React.FC = () => {
   const recentProjects = allProjects.slice(0, 12);
   const activityList: Activity[] = allProjects.map((p) => ({ id: p.id, name: p.name, date: p.createdAt, status: p.status }));
 
+  const openEditModal = (target: { type: 'org'; id: string; name: string; plan?: string } | { type: 'project'; id: string; name: string }) => {
+    setEditTarget(target);
+    setEditName(target.name);
+    setMenuOpen(null);
+  };
+
+  const saveEditName = () => {
+    if (!editTarget || !editName.trim()) return;
+    if (editTarget.type === 'org') {
+      organizationService.update(editTarget.id, editName.trim(), editTarget.plan ?? '').then(() => {
+        setOrganizations((prev) => prev.map((o) => (o.id === editTarget.id ? { ...o, name: editName.trim() } : o)));
+      }).catch(() => {}).finally(() => { setEditTarget(null); setEditName(''); });
+    } else {
+      projectService.update(editTarget.id, { name: editName.trim() }).then(() => {
+        setAllProjects((prev) => prev.map((p) => (p.id === editTarget.id ? { ...p, name: editName.trim() } : p)));
+      }).catch(() => {}).finally(() => { setEditTarget(null); setEditName(''); });
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'org') {
+      organizationService.delete(deleteTarget.id).then(() => {
+        setOrganizations((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+      }).catch(() => {}).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
+    } else {
+      projectService.delete(deleteTarget.id).then(() => {
+        setAllProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      }).catch(() => {}).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
+    }
+  };
+
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
       case ProjectStatus.ACTIVE: return 'bg-green-500/10 text-green-500 border-green-500/20';
@@ -172,7 +221,7 @@ const Dashboard: React.FC = () => {
             <span>Create Organization</span>
           </Link>
           <Link
-            to="/editor"
+            to="/new-project"
             className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
             <span className="material-symbols-outlined">add_circle</span>
@@ -202,18 +251,39 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {displayedOrganizations.map((org, index) => {
                 const iconStyle = getIconStyle(currentPage * itemsPerPage + index);
+                const isMenuOpen = menuOpen === 'org-' + org.id;
                 return (
-                  <Link key={org.id} to={`/organizations/${org.id}`}>
-                    <div className="group flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md">
+                  <div key={org.id} className="group relative flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
+                    <Link to={`/organizations/${org.id}`} className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconStyle.iconBg} ${iconStyle.iconColor}`}>
                         <span className="material-symbols-outlined">{iconStyle.icon}</span>
                       </div>
-                      <div className="flex flex-col">
-                        <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">{org.name}</h4>
+                      <div className="flex flex-col min-w-0">
+                        <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors truncate">{org.name}</h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{org.memberCount ?? 0} members</p>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setMenuOpen(isMenuOpen ? null : 'org-' + org.id); }}
+                      className="flex-shrink-0 p-1.5 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+                      aria-label="Menu"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                    </button>
+                    {isMenuOpen && (
+                      <div className="absolute right-2 top-full mt-1 z-20 py-1 min-w-[120px] bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                        <button type="button" onClick={() => openEditModal({ type: 'org', id: org.id, name: org.name, plan: org.plan })} className="w-full px-3 py-2 text-left text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-t-lg flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                          Rename
+                        </button>
+                        <button type="button" onClick={() => { setDeleteTarget({ type: 'org', id: org.id, name: org.name }); setMenuOpen(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-b-lg flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -281,28 +351,30 @@ const Dashboard: React.FC = () => {
           ))
         ) : recentProjects.length === 0 ? (
           <div className="col-span-full text-center py-12 text-slate-500 dark:text-slate-400">
-            No projects yet. Generate code in the Editor and choose an organization to save — projects will appear here after refresh.
+            No projects yet. Create a new project (draft) with the button above, or generate code in the Editor — drafts and generated projects will appear here.
           </div>
-        ) : recentProjects.map((project, projectIndex) => {
-          const previewHtml = project.generatedHtml ?? getProjectPreviewHtml(project.id) ?? (projectIndex === 0 ? getLastPreviewHtml() : null);
+        ) : recentProjects.map((project) => {
+          const previewHtml = project.generatedHtml ?? getProjectPreviewHtml(project.id);
+          const placeholderUrl = project.status === ProjectStatus.DRAFT
+            ? DRAFT_PLACEHOLDER
+            : project.status === ProjectStatus.COMPLETED
+              ? COMPLETED_PLACEHOLDER
+              : PLACEHOLDER_IMAGE;
           return (
-          <div key={project.id} className="group flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
-            <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-900 rounded-t-2xl">
+          <div key={project.id} className="group relative flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
+            <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-900">
               {previewHtml ? (
-                <div className="absolute inset-2 flex items-center justify-center overflow-hidden rounded-lg bg-slate-200/50 dark:bg-slate-800/50 min-h-0">
+                <div className="absolute inset-0 overflow-hidden min-h-0 min-w-0">
                   <div
-                    className="shrink-0 max-w-full max-h-full"
+                    className="absolute left-1/2 top-1/2 w-[200%] h-[200%] origin-center"
                     style={{
-                      width: '200%',
-                      height: '200%',
-                      transform: 'scale(0.5)',
-                      transformOrigin: 'center center',
+                      transform: 'translate(-50%, -50%) scale(0.5)',
                     }}
                   >
                     <iframe
                       title="Preview"
                       srcDoc={htmlForPreview(previewHtml)}
-                      className="w-full h-full border-0 pointer-events-none block rounded max-h-full"
+                      className="w-full h-full border-0 pointer-events-none block bg-white dark:bg-slate-900"
                       sandbox="allow-same-origin"
                     />
                   </div>
@@ -310,11 +382,11 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div
                   className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ backgroundImage: `url('${project.imageUrl}')` }}
-                ></div>
+                  style={{ backgroundImage: `url('${placeholderUrl}')` }}
+                />
               )}
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Link to="/editor" className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
+                <Link to={`/editor${project.id ? `?projectId=${encodeURIComponent(project.id)}` : ''}`} className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
               </div>
             </div>
             <div className="p-4 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
@@ -366,8 +438,8 @@ const Dashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link to="/editor" className="text-primary hover:text-primary/70 font-bold text-sm">
-                      {item.status === ProjectStatus.ARCHIVED ? 'Restore' : item.status === ProjectStatus.IN_PROGRESS ? 'Edit' : 'View'}
+                    <Link to={`/editor${item.id ? `?projectId=${encodeURIComponent(item.id)}` : ''}`} className="text-primary hover:text-primary/70 font-bold text-sm">
+                      {item.status === ProjectStatus.ARCHIVED ? 'Restore' : item.status === ProjectStatus.IN_PROGRESS || item.status === ProjectStatus.DRAFT ? 'Edit' : 'View'}
                     </Link>
                   </td>
                 </tr>
@@ -376,6 +448,53 @@ const Dashboard: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Rename modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => { setEditTarget(null); setEditName(''); }}>
+          <div className="bg-white dark:bg-[#1c2230] rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <h4 className="font-semibold text-slate-800 dark:text-white mb-3">{editTarget.type === 'org' ? 'Rename organization' : 'Rename project'}</h4>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+              placeholder={editTarget.type === 'org' ? 'Organization name' : 'Project name'}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={() => { setEditTarget(null); setEditName(''); }} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium">
+                Cancel
+              </button>
+              <button type="button" onClick={saveEditName} className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 text-sm font-medium">
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-white dark:bg-[#1c2230] rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <h4 className="font-semibold text-slate-800 dark:text-white mb-3">
+              {deleteTarget.type === 'org' ? 'Delete organization' : 'Delete project'}
+            </h4>
+            <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
+              {deleteTarget.type === 'org'
+                ? 'Are you sure you want to delete this organization?'
+                : 'Are you sure you want to delete this project?'}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium">
+                Cancel
+              </button>
+              <button type="button" onClick={confirmDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 text-sm font-medium">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

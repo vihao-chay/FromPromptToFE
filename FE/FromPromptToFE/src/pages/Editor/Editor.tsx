@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { generateCode } from '../../services/codeGenService';
 import organizationService from '../../services/organizationService';
-import projectService from '../../services/projectService';
+import projectService, { getContent } from '../../services/projectService';
+import projectOutputService from '../../services/projectOutputService';
 
 const PROMPT_HISTORY_KEY = 'editor_prompt_history';
 const PROMPT_HISTORY_MAX = 15;
@@ -88,6 +89,7 @@ const EDITOR_LABELS = {
     completed: 'Đã tạo xong',
     completedAt: (time: string) => `Đã tạo xong lúc ${time}`,
     viewCode: 'Xem Code / Preview bên phải.',
+    viewingThis: '✓ Đang xem bản này',
     processing: 'Đang xử lý...',
     error: 'Có lỗi khi tạo. Thử lại hoặc chỉnh prompt.',
     doneTitle: 'Xong',
@@ -97,6 +99,7 @@ const EDITOR_LABELS = {
     completed: 'Created',
     completedAt: (time: string) => `Created at ${time}`,
     viewCode: 'View Code / Preview on the right.',
+    viewingThis: '✓ Viewing this version',
     processing: 'Processing...',
     error: 'Something went wrong. Try again or adjust your prompt.',
     doneTitle: 'Done',
@@ -123,9 +126,13 @@ interface PromptHistoryItem {
 
 type ChatTurn =
   | { id: string; role: 'user'; text: string }
-  | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; completedAt?: number; steps?: string[]; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string };
+  | { id: string; role: 'assistant'; status: 'running' | 'done' | 'error'; completedAt?: number; steps?: string[]; tasks: { id: string; label: string; status: TaskStatus; progress: number }[]; tsx?: string; html?: string; outputId?: string };
 
 const Editor: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectIdFromUrl = searchParams.get('projectId') ?? '';
+
+  const [projectName, setProjectName] = useState('');
   const [erd, setErd] = useState('');
   const [apiSpec, setApiSpec] = useState('');
   const [designSystem, setDesignSystem] = useState(DEFAULT_DESIGN_SYSTEM);
@@ -141,6 +148,8 @@ const Editor: React.FC = () => {
   const [outputTab, setOutputTab] = useState<OutputTab>('code');
   const [device, setDevice] = useState<Device>('desktop');
   const [isSaving, setIsSaving] = useState(false);
+  const [outputSaved, setOutputSaved] = useState(false);
+  const [outputSaveError, setOutputSaveError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [generatedTsx, setGeneratedTsx] = useState<string>('');
   const [generatedHtml, setGeneratedHtml] = useState<string>('');
@@ -151,6 +160,8 @@ const Editor: React.FC = () => {
   const [hasRunOnce, setHasRunOnce] = useState(false);
   const [runningStepIndex, setRunningStepIndex] = useState(0);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [outputsList, setOutputsList] = useState<Array<{ id?: string; Id?: string; createdAt?: string; CreatedAt?: string; systemPrompt?: string; status?: string; stepOutput?: string; generatedTsx?: string; generatedHtml?: string }>>([]);
+  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
 
   const savePromptToHistory = useCallback((text: string) => {
     const t = (text || '').trim();
@@ -189,6 +200,94 @@ const Editor: React.FC = () => {
     const t = setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
     return () => { clearTimeout(t); document.removeEventListener('click', onDocClick, true); };
   }, [plusMenuOpen]);
+
+  useEffect(() => {
+    if (!projectIdFromUrl) {
+      setProjectName('');
+      return;
+    }
+    projectService.getById(projectIdFromUrl).then((res) => {
+      const content = getContent(res.data) as { name?: string; Name?: string } | undefined;
+      const name = content?.name ?? content?.Name ?? '';
+      setProjectName(name || '');
+    }).catch(() => setProjectName(''));
+  }, [projectIdFromUrl]);
+
+  const parseStepsFromOutput = (stepOutput: string | undefined): string[] => {
+    let steps: string[] = [];
+    try {
+      if (stepOutput) {
+        const parsed = JSON.parse(stepOutput);
+        if (Array.isArray(parsed)) steps = parsed.filter((s: unknown) => typeof s === 'string').slice(0, 4);
+      }
+    } catch {}
+    if (steps.length < 4) steps = STEPS_WHILE_RUNNING_EN.slice(0, 4);
+    return steps;
+  };
+
+  /** Sort outputs past → future (oldest first) for display; newest is last. */
+  const sortOutputsPastToFuture = useCallback((list: typeof outputsList) => {
+    return [...list].sort((a, b) => {
+      const ta = new Date(a.createdAt ?? a.CreatedAt ?? 0).getTime();
+      const tb = new Date(b.createdAt ?? b.CreatedAt ?? 0).getTime();
+      return ta - tb;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!projectIdFromUrl) {
+      setOutputsList([]);
+      setSelectedOutputId(null);
+      return;
+    }
+    projectOutputService.getOutputsByProjectId(projectIdFromUrl).then((list) => {
+      const sorted = sortOutputsPastToFuture(list);
+      setOutputsList(sorted);
+      if (sorted.length === 0) return;
+      const turns: ChatTurn[] = [];
+      sorted.forEach((output, idx) => {
+        const outputId = output.id ?? output.Id ?? `out-${idx}`;
+        const userText = output.systemPrompt ?? '';
+        const createdAtStr = output.createdAt ?? output.CreatedAt;
+        const completedAt = createdAtStr ? new Date(createdAtStr).getTime() : undefined;
+        const taskStatus = output.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
+        const steps = parseStepsFromOutput(output.stepOutput);
+        turns.push({ id: `user-${outputId}`, role: 'user', text: userText });
+        turns.push({
+          id: `ast-${outputId}`,
+          role: 'assistant',
+          status: 'done',
+          completedAt,
+          steps,
+          tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: output.status === 'Success' ? 100 : 0 })),
+          tsx: output.generatedTsx,
+          html: output.generatedHtml,
+          outputId,
+        });
+      });
+      setChatTurns(turns);
+      const latest = sorted[sorted.length - 1];
+      const latestId = latest?.id ?? latest?.Id ?? null;
+      setSelectedOutputId(latestId);
+      setGeneratedTsx(latest?.generatedTsx ?? '');
+      setGeneratedHtml(latest?.generatedHtml ?? '');
+      setHasRunOnce(sorted.length > 0);
+      setOutputTab('code');
+      if (latest) {
+        const taskStatus = latest.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
+        setTasks(TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: latest.status === 'Success' ? 100 : 0 })));
+      }
+    }).catch(() => {});
+  }, [projectIdFromUrl, sortOutputsPastToFuture]);
+
+  useEffect(() => {
+    if (!selectedOutputId || outputsList.length === 0) return;
+    const out = outputsList.find((o) => (o.id ?? o.Id) === selectedOutputId);
+    if (out) {
+      setGeneratedTsx(out.generatedTsx ?? '');
+      setGeneratedHtml(out.generatedHtml ?? '');
+    }
+  }, [selectedOutputId, outputsList]);
 
   useEffect(() => {
     if (!showAdvanced) return;
@@ -253,29 +352,96 @@ const Editor: React.FC = () => {
         try { localStorage.setItem('editor_last_preview_html', html); localStorage.setItem('editor_last_preview_updated', String(Date.now())); } catch {}
         savePromptToHistory(userText);
         setOutputTab('code');
-        organizationService.getAll().then((res) => {
-          const content = res.data?.content as { TotalItems?: { id?: string; Id?: string }[]; totalItems?: { id?: string; Id?: string }[] } | undefined;
-          const list = Array.isArray(content?.TotalItems) ? content.TotalItems : Array.isArray(content?.totalItems) ? content.totalItems : [];
-          const firstId = list[0]?.id ?? list[0]?.Id;
-          if (firstId) {
-            projectService.create({
-              organizationId: String(firstId),
-              name: (userText.slice(0, 80) || 'Generated').trim() || 'Generated',
-              projectType: 'Generated',
-              systemPrompt: userText,
-              entitySchema: erd || undefined,
-              generatedTsx: tsx,
-              generatedHtml: html,
-            }).then((res) => {
-              const created = res.data?.content as { id?: string; Id?: string } | undefined;
-              const projectId = created?.id ?? created?.Id;
-              if (projectId && html) {
-                try { localStorage.setItem('project_preview_' + projectId, html); } catch {}
-              }
+        const stepOutputJson = JSON.stringify(steps ?? []);
+        const promptHistoryEntries = [...chatTurns.map((t) => ({ role: t.role, content: t.role === 'user' ? t.text : ((t as { steps?: string[] }).steps ?? []).join('\n') })), { role: 'user' as const, content: userText }];
+        const promptHistoryJson = JSON.stringify(promptHistoryEntries);
+        const savePayload = {
+          generatedTsx: tsx,
+          generatedHtml: html,
+          systemPrompt: userText,
+          userPrompt: userText,
+          taskStatus: 'Success',
+          stepOutput: stepOutputJson,
+          promptHistory: promptHistoryJson,
+        };
+        const doSaveOutput = async (projectId: string) => {
+          setOutputSaveError(null);
+          try {
+            await projectOutputService.saveOutput(projectId, savePayload);
+            if (html) try { localStorage.setItem('project_preview_' + projectId, html); } catch {}
+            setOutputSaved(true);
+            setTimeout(() => setOutputSaved(false), 3000);
+            projectOutputService.getOutputsByProjectId(projectId).then((list) => {
+              const sorted = sortOutputsPastToFuture(list);
+              setOutputsList(sorted);
+              const turns: ChatTurn[] = [];
+              sorted.forEach((output, idx) => {
+                const outputId = output.id ?? output.Id ?? `out-${idx}`;
+                const userText = output.systemPrompt ?? '';
+                const createdAtStr = output.createdAt ?? output.CreatedAt;
+                const completedAt = createdAtStr ? new Date(createdAtStr).getTime() : undefined;
+                const taskStatus = output.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
+                const steps = parseStepsFromOutput(output.stepOutput);
+                turns.push({ id: `user-${outputId}`, role: 'user', text: userText });
+                turns.push({
+                  id: `ast-${outputId}`,
+                  role: 'assistant',
+                  status: 'done',
+                  completedAt,
+                  steps,
+                  tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: output.status === 'Success' ? 100 : 0 })),
+                  tsx: output.generatedTsx,
+                  html: output.generatedHtml,
+                  outputId,
+                });
+              });
+              setChatTurns(turns);
+              const latest = sorted[sorted.length - 1];
+              const latestId = latest?.id ?? latest?.Id ?? null;
+              setSelectedOutputId(latestId);
+              setGeneratedTsx(latest?.generatedTsx ?? '');
+              setGeneratedHtml(latest?.generatedHtml ?? '');
             }).catch(() => {});
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error('[ProjectOutput] save failed:', e);
+            setOutputSaveError(msg);
           }
-        }).catch(() => {});
-      } else setOutputTab('tasks');
+        };
+        const derivedName = (userText.slice(0, 80) || 'Generated').trim() || 'Generated';
+        if (projectIdFromUrl) {
+          void doSaveOutput(projectIdFromUrl);
+          projectService.update(projectIdFromUrl, { projectType: 'Completed', systemPrompt: userText, entitySchema: erd || undefined }).catch(() => {});
+        } else {
+          organizationService.getAll().then((res) => {
+            const content = getContent(res.data) as { TotalItems?: { id?: string; Id?: string }[]; totalItems?: { id?: string; Id?: string }[] } | undefined;
+            const list = Array.isArray(content?.TotalItems) ? content.TotalItems : Array.isArray(content?.totalItems) ? content.totalItems : [];
+            const firstId = list[0]?.id ?? list[0]?.Id;
+            if (firstId) {
+              projectService.create({
+                organizationId: String(firstId),
+                name: derivedName,
+                projectType: 'Completed',
+                systemPrompt: userText,
+                entitySchema: erd || undefined,
+              }).then((createRes) => {
+                const created = getContent(createRes.data) as { id?: string; Id?: string; name?: string; Name?: string } | undefined;
+                const projectId = created?.id ?? created?.Id;
+                if (projectId) {
+                  const pid = String(projectId);
+                  void doSaveOutput(pid);
+                  if (html) try { localStorage.setItem('project_preview_' + pid, html); } catch {}
+                  setSearchParams({ projectId: pid });
+                }
+              }).catch((e) => { console.error('[Project] create failed:', e); });
+            }
+          }).catch((e) => { console.error('[Organization] getAll failed:', e); });
+        }
+      } else {
+        const failedPayload = { systemPrompt: userText, userPrompt: userText, taskStatus: 'Failed', stepOutput: JSON.stringify(steps ?? []), promptHistory: JSON.stringify([...chatTurns.map((t) => ({ role: t.role, content: t.role === 'user' ? t.text : ((t as { steps?: string[] }).steps ?? []).join('\n') })), { role: 'user' as const, content: userText }]) };
+        if (projectIdFromUrl) projectOutputService.saveOutput(projectIdFromUrl, failedPayload).catch(() => {});
+        setOutputTab('tasks');
+      }
       setChatTurns((prev) =>
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === 'assistant'
@@ -327,7 +493,7 @@ const Editor: React.FC = () => {
       <div className="flex-shrink-0 flex flex-wrap items-center gap-1.5 text-xs px-4 pt-2 border-b border-slate-200 dark:border-[#282e39] pb-2">
         <Link className="text-slate-500 dark:text-[#9da6b9] hover:text-primary font-medium" to="/dashboard">Projects</Link>
         <span className="material-symbols-outlined text-slate-400 text-[10px]">chevron_right</span>
-        <span className="text-slate-900 dark:text-white font-medium">Create New Project</span>
+        <span className="text-slate-900 dark:text-white font-medium">{projectName.trim() || 'Create New Project'}</span>
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -367,9 +533,15 @@ const Editor: React.FC = () => {
                 const completedTime = turn.status === 'done' && turn.completedAt != null
                   ? new Date(turn.completedAt).toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: lang === 'en' })
                   : '';
+                const turnOutputId = turn.outputId;
+                const isSelected = turnOutputId && turnOutputId === selectedOutputId;
                 return (
                   <div key={turn.id} className="flex justify-start">
-                    <div className="max-w-[90%] rounded-2xl rounded-bl-md bg-slate-100 dark:bg-[#1c1f27] border border-slate-200 dark:border-[#282e39] px-4 py-3">
+                    <div
+                      role={turnOutputId ? 'button' : undefined}
+                      onClick={turnOutputId ? () => { setSelectedOutputId(turnOutputId); } : undefined}
+                      className={`max-w-[90%] rounded-2xl rounded-bl-md bg-slate-100 dark:bg-[#1c1f27] border px-4 py-3 ${turnOutputId ? 'cursor-pointer hover:border-primary/40 transition-colors' : 'border-slate-200 dark:border-[#282e39]'} ${isSelected ? 'ring-2 ring-primary border-primary' : 'border-slate-200 dark:border-[#282e39]'}`}
+                    >
                       {(turn.status === 'running' || turn.status === 'done') && (
                         <>
                           <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
@@ -404,7 +576,9 @@ const Editor: React.FC = () => {
                             </div>
                           )}
                           {turn.status === 'done' && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">{labels.viewCode}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                              {isSelected ? labels.viewingThis : labels.viewCode}
+                            </p>
                           )}
                         </>
                       )}
@@ -592,7 +766,12 @@ const Editor: React.FC = () => {
                       index.html
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(outputSaved || outputSaveError) && (
+                      <span className={`text-xs ${outputSaved ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {outputSaved ? 'Đã lưu vào project output' : outputSaveError}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={handleCopy}

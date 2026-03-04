@@ -57,7 +57,14 @@ namespace FromFromptToFE.Services
                 Version = o.Version,
                 Status = o.Status,
                 TriggeredBy = o.TriggeredBy,
-                CreatedAt = o.CreatedAt
+                CreatedAt = o.CreatedAt,
+                SystemPrompt = o.SystemPrompt,
+                UserPrompt = o.UserPrompt,
+                PromptHistory = o.PromptHistory,
+                GeneratedTsx = o.GeneratedTsx,
+                GeneratedHtml = o.GeneratedHtml,
+                StepOutput = o.StepOutput,
+                GeneratedPreviewImage = o.GeneratedPreviewImage
             };
             if (includePages && o.Pages != null)
             {
@@ -74,6 +81,38 @@ namespace FromFromptToFE.Services
                 }).ToList();
             }
             return dto;
+        }
+
+        public async Task<ProjectOutputDto> SaveOutputAsync(Guid projectId, Guid userId, SaveProjectOutputDto dto)
+        {
+            var project = await _projectRepo.GetByIdAsync(projectId);
+            if (project == null) throw new Exception("Project not found");
+
+            var previousOutputs = (await _projectOutputRepo.GetAllByProjectIdAsync(projectId)).ToList();
+            var version = $"v{previousOutputs.Count + 1}.0";
+
+            var output = new ProjectOutput
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                Version = version,
+                Status = dto.TaskStatus ?? "Success",
+                TriggeredBy = userId,
+                CreatedAt = DateTime.UtcNow,
+                SystemPrompt = dto.SystemPrompt,
+                UserPrompt = dto.UserPrompt,
+                PromptHistory = dto.PromptHistory,
+                GeneratedTsx = dto.GeneratedTsx,
+                GeneratedHtml = dto.GeneratedHtml,
+                StepOutput = dto.StepOutput,
+                GeneratedPreviewImage = dto.GeneratedPreviewImage
+            };
+
+            await _projectOutputRepo.AddAsync(output);
+            await _projectOutputRepo.SaveChangesAsync();
+
+            var saved = await _projectOutputRepo.GetProjectOutputWithDetailsAsync(output.Id);
+            return MapToDto(saved ?? output, includePages: true);
         }
 
         public async Task<ProjectOutputDto?> GetByIdAsync(Guid id)

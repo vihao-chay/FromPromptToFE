@@ -257,8 +257,6 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("character varying")
                 .HasColumnName("repo_url");
             entity.Property(e => e.SystemPrompt).HasColumnName("system_prompt");
-            entity.Property(e => e.GeneratedTsx).HasColumnType("text").HasColumnName("generated_tsx");
-            entity.Property(e => e.GeneratedHtml).HasColumnType("text").HasColumnName("generated_html");
 
             entity.HasOne(d => d.Organization).WithMany(p => p.Projects)
                 .HasForeignKey(d => d.OrganizationId)
@@ -286,6 +284,13 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.Version)
                 .HasColumnType("character varying")
                 .HasColumnName("version");
+            entity.Property(e => e.SystemPrompt).HasColumnType("text").HasColumnName("system_prompt");
+            entity.Property(e => e.GeneratedTsx).HasColumnType("text").HasColumnName("generated_tsx");
+            entity.Property(e => e.GeneratedHtml).HasColumnType("text").HasColumnName("generated_html");
+            entity.Ignore(e => e.UserPrompt);
+            entity.Ignore(e => e.PromptHistory);
+            entity.Ignore(e => e.StepOutput);
+            entity.Ignore(e => e.GeneratedPreviewImage);
 
             entity.HasOne(d => d.Project).WithMany(p => p.ProjectOutputs)
                 .HasForeignKey(d => d.ProjectId)

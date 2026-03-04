@@ -2,6 +2,7 @@ using FromFromptToFE.Base;
 using FromFromptToFE.DTOs.Page;
 using FromFromptToFE.DTOs.ProjectOutput;
 using FromFromptToFE.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -9,6 +10,7 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProjectOutputController : ControllerBase
     {
         private readonly IProjectOutputService _service;
@@ -71,6 +73,33 @@ namespace FromFromptToFE.Controllers
             catch (Exception ex)
             {
                 return ResponseEntity<ProjectOutputDto>.Fail(ex.Message, 500);
+            }
+        }
+
+        /// <summary>
+        /// Lưu kết quả generate (code, html, preview, task status, step output, tất cả prompt) vào project_outputs. Mỗi lần gọi tạo một bản ghi mới (version).
+        /// </summary>
+        [HttpPost("save")]
+        public async Task<IActionResult> SaveOutput([FromQuery] Guid projectId, [FromBody] SaveProjectOutputDto dto)
+        {
+            if (projectId == Guid.Empty)
+                return ResponseEntity<ProjectOutputDto>.Fail("projectId không hợp lệ", 400);
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return ResponseEntity<ProjectOutputDto>.Fail("Không xác định được người dùng", 401);
+
+            try
+            {
+                var result = await _service.SaveOutputAsync(projectId, userId, dto ?? new SaveProjectOutputDto());
+                return ResponseEntity<ProjectOutputDto>.Ok(result, "Lưu output thành công");
+            }
+            catch (Exception ex)
+            {
+                var message = ex.Message;
+                if (ex.InnerException != null)
+                    message += " | " + ex.InnerException.Message;
+                return ResponseEntity<ProjectOutputDto>.Fail(message, ex.Message == "Project not found" ? 404 : 500);
             }
         }
 

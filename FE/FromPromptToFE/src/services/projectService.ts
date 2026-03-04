@@ -42,6 +42,12 @@ export interface ProjectFilter {
   pageSize?: number;
 }
 
+/** Backend may return content or Content (PascalCase). */
+export function getContent<T>(data: { content?: T; Content?: T } | undefined): T | undefined {
+  if (!data) return undefined;
+  return (data as { content?: T }).content ?? (data as { Content?: T }).Content;
+}
+
 const projectService = {
   getAll: (params?: ProjectFilter) => {
     const query = new URLSearchParams();
