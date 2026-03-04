@@ -22,8 +22,10 @@ obj/
 # ========================
 # ASP.NET Core
 # ========================
+appsettings.json
 appsettings.Development.json
 appsettings.Local.json
+appsettings.Production.json
 
 # ========================
 # Publish

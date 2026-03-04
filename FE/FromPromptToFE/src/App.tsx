@@ -1,35 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import HomePage from './pages/Home/HomePage';
-import Dashboard from './pages/Dashboard/Dashboard';
-import LoginPage from './pages/Auth/LoginPage';
-import RegisterPage from './pages/Auth/RegisterPage';
-import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
-import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
-import Profile from './pages/Dashboard/Profile';
-import Editor from './pages/Editor/Editor';
-import Preview from './pages/Editor/Preview';
-import GitHubStatus from './pages/Github/GitHubStatus';
-import GitHubIntegration from './pages/Github/GitHubIntegration';
-import OrganizationDetail from './pages/Organization/OrganizationDetail';
-import NewOrganization from './pages/Organization/NewOrganization';
-import ChangeLogs from './pages/ChangeLogs/ChangeLogs';
-import Repositories from './pages/Repositories/Repositories';
-import ApiKeys from './pages/ApiKeys/ApiKeys';
-import DesignSystems from './pages/DesignSystems/DesignSystems';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import AdminUsers from './pages/Admin/AdminUsers';
-import AdminProjects from './pages/Admin/AdminProjects';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import HomePage from "./pages/Home/HomePage";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import LoginPage from "./pages/Auth/LoginPage";
+import RegisterPage from "./pages/Auth/RegisterPage";
+import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/Auth/ResetPasswordPage";
+import VerifyEmailPage from "./pages/Auth/VerifyEmailPage";
+import GitHubCallback from "./pages/Auth/GitHubCallback";
+import Profile from "./pages/Dashboard/Profile";
+import Editor from "./pages/Editor/Editor";
+import Preview from "./pages/Editor/Preview";
+import GitHubStatus from "./pages/Github/GitHubStatus";
+import GitHubIntegration from "./pages/Github/GitHubIntegration";
+import OrganizationDetail from "./pages/Organization/OrganizationDetail";
+import NewOrganization from "./pages/Organization/NewOrganization";
+import ChangeLogs from "./pages/ChangeLogs/ChangeLogs";
+import Repositories from "./pages/Repositories/Repositories";
+import ApiKeys from "./pages/ApiKeys/ApiKeys";
+import DesignSystems from "./pages/DesignSystems/DesignSystems";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AdminUsers from "./pages/Admin/AdminUsers";
+import AdminProjects from "./pages/Admin/AdminProjects";
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => !!localStorage.getItem("token"),
+  );
 
   useEffect(() => {
     const onLogout = () => setIsAuthenticated(false);
-    window.addEventListener('auth-logout', onLogout);
-    return () => window.removeEventListener('auth-logout', onLogout);
+    window.addEventListener("auth-logout", onLogout);
+    return () => window.removeEventListener("auth-logout", onLogout);
   }, []);
 
   return (
@@ -38,39 +41,125 @@ const App: React.FC = () => {
         {isAuthenticated && <Navbar />}
         <main className="flex-1 bg-slate-50 dark:bg-[#0d0e12] min-h-0">
           <Routes>
-            <Route path="/login" element={<LoginPage onLogin={() => setIsAuthenticated(true)} />} />
+            <Route
+              path="/login"
+              element={<LoginPage onLogin={() => setIsAuthenticated(true)} />}
+            />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/auth/github/callback" element={<GitHubCallback />} />
 
             {/* Public Route: Only for unauthenticated users. */}
             <Route
               path="/"
-              element={!isAuthenticated ? <HomePage /> : <Navigate to="/dashboard" replace />}
+              element={
+                !isAuthenticated ? (
+                  <HomePage />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
             />
 
             {/* Protected Routes */}
             <Route
               path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
+              element={
+                isAuthenticated ? (
+                  <Dashboard />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
             />
-            <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
-            <Route path="/editor" element={isAuthenticated ? <Editor /> : <Navigate to="/login" />} />
-            <Route path="/preview" element={isAuthenticated ? <Preview /> : <Navigate to="/login" />} />
-            <Route path="/github-integration" element={isAuthenticated ? <GitHubIntegration /> : <Navigate to="/login" />} />
-            <Route path="/github-status" element={isAuthenticated ? <GitHubStatus /> : <Navigate to="/login" />} />
-            <Route path="/organizations/:id" element={isAuthenticated ? <OrganizationDetail /> : <Navigate to="/login" />} />
-            <Route path="/new-organization" element={isAuthenticated ? <NewOrganization /> : <Navigate to="/login" />} />
-            <Route path="/change-logs" element={isAuthenticated ? <ChangeLogs /> : <Navigate to="/login" />} />
-            <Route path="/repositories" element={isAuthenticated ? <Repositories /> : <Navigate to="/login" />} />
-            <Route path="/api-keys" element={isAuthenticated ? <ApiKeys /> : <Navigate to="/login" />} />
-            <Route path="/design-systems" element={isAuthenticated ? <DesignSystems /> : <Navigate to="/login" />} />
+            <Route
+              path="/profile"
+              element={isAuthenticated ? <Profile /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/editor"
+              element={isAuthenticated ? <Editor /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/preview"
+              element={isAuthenticated ? <Preview /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/github-integration"
+              element={
+                isAuthenticated ? (
+                  <GitHubIntegration />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+            <Route
+              path="/github-status"
+              element={
+                isAuthenticated ? <GitHubStatus /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/organizations/:id"
+              element={
+                isAuthenticated ? (
+                  <OrganizationDetail />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+            <Route
+              path="/new-organization"
+              element={
+                isAuthenticated ? <NewOrganization /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/change-logs"
+              element={
+                isAuthenticated ? <ChangeLogs /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/repositories"
+              element={
+                isAuthenticated ? <Repositories /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/api-keys"
+              element={isAuthenticated ? <ApiKeys /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/design-systems"
+              element={
+                isAuthenticated ? <DesignSystems /> : <Navigate to="/login" />
+              }
+            />
 
             {/* Admin Routes */}
-            <Route path="/admin" element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />} />
-            <Route path="/admin/users" element={isAuthenticated ? <AdminUsers /> : <Navigate to="/login" />} />
-            <Route path="/admin/projects" element={isAuthenticated ? <AdminProjects /> : <Navigate to="/login" />} />
+            <Route
+              path="/admin"
+              element={
+                isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                isAuthenticated ? <AdminUsers /> : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/admin/projects"
+              element={
+                isAuthenticated ? <AdminProjects /> : <Navigate to="/login" />
+              }
+            />
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
@@ -81,9 +170,15 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-slate-500 text-sm font-display">
               <p>© 2026 AI Code Gen. Built for Professional Developers.</p>
               <div className="flex items-center gap-6">
-                <a className="hover:text-primary transition-colors" href="#">Documentation</a>
-                <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
-                <a className="hover:text-primary transition-colors" href="#">Support</a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Documentation
+                </a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Privacy Policy
+                </a>
+                <a className="hover:text-primary transition-colors" href="#">
+                  Support
+                </a>
               </div>
             </div>
           </footer>

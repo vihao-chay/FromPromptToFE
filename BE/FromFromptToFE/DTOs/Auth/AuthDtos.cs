@@ -44,6 +44,12 @@ namespace FromFromptToFE.DTOs.Auth
         public string IdToken { get; set; } = null!;
     }
 
+    public class GitHubLoginDto
+    {
+        [Required]
+        public string Code { get; set; } = null!;
+    }
+
     public class ForgotPasswordDto
     {
         [Required(ErrorMessage = "Email là bắt buộc")]
