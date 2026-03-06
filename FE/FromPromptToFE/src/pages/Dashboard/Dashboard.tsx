@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ProjectStatus, Project, Activity } from '../../types';
 import organizationService from '../../services/organizationService';
 import projectService from '../../services/projectService';
+import organizationMemberService from '../../services/oganizationMemberService';
 
 interface Organization {
   id: string;
@@ -92,16 +93,31 @@ const Dashboard: React.FC = () => {
         const content = response.data?.content;
         const list = content?.totalItems ?? content?.TotalItems ?? (Array.isArray(content) ? content : []);
         const items = Array.isArray(list) ? list : [];
-        setOrganizations(
-          items.map((o: { id?: string; Id?: string; name?: string; Name?: string; organizationMembers?: unknown[] }) => ({
-            id: (o.id ?? o.Id ?? '').toString(),
-            name: String(o.name ?? o.Name ?? '').trim() || 'Unnamed organization',
-            plan: (o as { plan?: string; Plan?: string }).plan ?? (o as { Plan?: string }).Plan,
-            memberCount: Array.isArray((o as { organizationMembers?: unknown[] }).organizationMembers)
-              ? (o as { organizationMembers: unknown[] }).organizationMembers.length
-              : 0,
-          }))
+
+        const orgsWithMembers = await Promise.all(
+          items.map(async (o: any) => {
+            const orgId = (o.id ?? o.Id ?? '').toString();
+            let count = 0;
+            try {
+              const mRes = await organizationMemberService.getAll(orgId);
+              const mData = mRes.data ?? mRes;
+              const mContent = mData.content ?? mData;
+              const mList = Array.isArray(mContent) ? mContent : (mContent?.totalItems ?? mContent?.items ?? []);
+              count = mContent?.totalRow ?? mList.length;
+            } catch (err) {
+              // fallback count to 0 if failed
+            }
+
+            return {
+              id: orgId,
+              name: String(o.name ?? o.Name ?? '').trim() || 'Unnamed organization',
+              plan: o.plan ?? o.Plan,
+              memberCount: count,
+            };
+          })
         );
+
+        setOrganizations(orgsWithMembers);
       } catch (error) {
         console.error('Error fetching organizations:', error);
       } finally {
@@ -169,11 +185,11 @@ const Dashboard: React.FC = () => {
     if (editTarget.type === 'org') {
       organizationService.update(editTarget.id, editName.trim(), editTarget.plan ?? '').then(() => {
         setOrganizations((prev) => prev.map((o) => (o.id === editTarget.id ? { ...o, name: editName.trim() } : o)));
-      }).catch(() => {}).finally(() => { setEditTarget(null); setEditName(''); });
+      }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     } else {
       projectService.update(editTarget.id, { name: editName.trim() }).then(() => {
         setAllProjects((prev) => prev.map((p) => (p.id === editTarget.id ? { ...p, name: editName.trim() } : p)));
-      }).catch(() => {}).finally(() => { setEditTarget(null); setEditName(''); });
+      }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     }
   };
 
@@ -182,11 +198,11 @@ const Dashboard: React.FC = () => {
     if (deleteTarget.type === 'org') {
       organizationService.delete(deleteTarget.id).then(() => {
         setOrganizations((prev) => prev.filter((o) => o.id !== deleteTarget.id));
-      }).catch(() => {}).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
+      }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     } else {
       projectService.delete(deleteTarget.id).then(() => {
         setAllProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-      }).catch(() => {}).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
+      }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     }
   };
 
@@ -361,45 +377,45 @@ const Dashboard: React.FC = () => {
               ? COMPLETED_PLACEHOLDER
               : PLACEHOLDER_IMAGE;
           return (
-          <div key={project.id} className="group relative flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
-            <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-900">
-              {previewHtml ? (
-                <div className="absolute inset-0 overflow-hidden min-h-0 min-w-0">
-                  <div
-                    className="absolute left-1/2 top-1/2 w-[200%] h-[200%] origin-center"
-                    style={{
-                      transform: 'translate(-50%, -50%) scale(0.5)',
-                    }}
-                  >
-                    <iframe
-                      title="Preview"
-                      srcDoc={htmlForPreview(previewHtml)}
-                      className="w-full h-full border-0 pointer-events-none block bg-white dark:bg-slate-900"
-                      sandbox="allow-same-origin"
-                    />
+            <div key={project.id} className="group relative flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
+              <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-900">
+                {previewHtml ? (
+                  <div className="absolute inset-0 overflow-hidden min-h-0 min-w-0">
+                    <div
+                      className="absolute left-1/2 top-1/2 w-[200%] h-[200%] origin-center"
+                      style={{
+                        transform: 'translate(-50%, -50%) scale(0.5)',
+                      }}
+                    >
+                      <iframe
+                        title="Preview"
+                        srcDoc={htmlForPreview(previewHtml)}
+                        className="w-full h-full border-0 pointer-events-none block bg-white dark:bg-slate-900"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
                   </div>
+                ) : (
+                  <div
+                    className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{ backgroundImage: `url('${placeholderUrl}')` }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Link to={`/editor${project.id ? `?projectId=${encodeURIComponent(project.id)}` : ''}`} className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
                 </div>
-              ) : (
-                <div
-                  className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ backgroundImage: `url('${placeholderUrl}')` }}
-                />
-              )}
-              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Link to={`/editor${project.id ? `?projectId=${encodeURIComponent(project.id)}` : ''}`} className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
+              </div>
+              <div className="p-4 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex justify-between items-start gap-2">
+                  <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug line-clamp-2 flex-1 min-w-0">{project.name}</h4>
+                  <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${getStatusColor(project.status)}`}>{project.status}</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[14px]">schedule</span>
+                  {project.createdAt}
+                </p>
               </div>
             </div>
-            <div className="p-4 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-start gap-2">
-                <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug line-clamp-2 flex-1 min-w-0">{project.name}</h4>
-                <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${getStatusColor(project.status)}`}>{project.status}</span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px]">schedule</span>
-                {project.createdAt}
-              </p>
-            </div>
-          </div>
           );
         })
         }
