@@ -282,7 +282,6 @@ const Profile: React.FC = () => {
                       className="form-input flex w-full min-w-0 flex-1 rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/40 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 h-10 px-4 text-sm font-normal transition-all"
                       placeholder="https://example.com/avatar.jpg"
                       type="url"
-                      value={avatarInput.startsWith('data:') ? '' : avatarInput}
                       onChange={(e) => setAvatarInput(e.target.value)}
                     />
                   </div>
