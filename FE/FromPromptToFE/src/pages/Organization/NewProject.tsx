@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import projectService, { getContent } from '../../services/projectService';
 import organizationService from '../../services/organizationService';
-import authService, { getMyOrganizations } from '../../services/authService';
+import authService, { getMyOrganizations, UserOrganizationDto } from '../../services/authService';
 
 const ONBOARDING_STORAGE_KEY = 'onboardingComplete';
 const NEW_PROJECT_ORG_KEY = 'newProjectOrganizationId';
@@ -16,47 +16,50 @@ const NewProject: React.FC = () => {
   const initialOrgId = stateOrgId ?? storedOrgId ?? '';
 
   const [organizationId, setOrganizationId] = useState<string>(initialOrgId);
-  const [organizationName, setOrganizationName] = useState<string>('');
+  const [myOrgs, setMyOrgs] = useState<UserOrganizationDto[]>([]);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(!!initialOrgId);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const orgIdToLoad = stateOrgId ?? storedOrgId ?? '';
-    if (stateOrgId) sessionStorage.setItem(NEW_PROJECT_ORG_KEY, stateOrgId);
-
-    if (orgIdToLoad) {
-      setOrganizationId(orgIdToLoad);
-      organizationService
-        .getById(orgIdToLoad)
-        .then((res) => {
-          const c = getContent(res.data) as { name?: string; Name?: string } | undefined;
-          setOrganizationName(c?.name ?? c?.Name ?? '');
-        })
-        .catch(() => setOrganizationName(''))
-        .finally(() => setLoading(false));
-      return;
-    }
-    authService
-      .getMe()
-      .then((meRes) => {
+    const loadOrgs = async () => {
+      try {
+        const meRes = await authService.getMe();
         const content = getContent(meRes.data) as { id?: string; Id?: string } | undefined;
         const userId = content?.id ?? content?.Id;
-        if (!userId) return Promise.resolve([]);
-        return getMyOrganizations(String(userId));
-      })
-      .then((orgs) => {
-        const first = orgs[0];
-        if (first) {
-          setOrganizationId(first.organizationId);
-          setOrganizationName(first.organizationName?.trim() || 'Unnamed');
-          sessionStorage.setItem(NEW_PROJECT_ORG_KEY, first.organizationId);
+        if (!userId) { setLoading(false); return; }
+
+        const orgs = await getMyOrganizations(String(userId));
+        setMyOrgs(orgs);
+
+        // If we already have an orgId from state/storage, keep it; otherwise pick the first one
+        const preselected = stateOrgId ?? storedOrgId ?? '';
+        if (preselected && orgs.some(o => o.organizationId === preselected)) {
+          setOrganizationId(preselected);
+        } else if (orgs.length > 0) {
+          setOrganizationId(orgs[0].organizationId);
+          sessionStorage.setItem(NEW_PROJECT_ORG_KEY, orgs[0].organizationId);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [stateOrgId, storedOrgId]);
+      } catch {
+        // fallback — try loading single org if we have an id
+        if (initialOrgId) {
+          try {
+            const res = await organizationService.getById(initialOrgId);
+            const c = getContent(res.data) as { name?: string; Name?: string; id?: string; Id?: string } | undefined;
+            setMyOrgs([{
+              organizationId: initialOrgId,
+              organizationName: c?.name ?? c?.Name ?? 'Unnamed',
+              role: 'Owner',
+            }]);
+          } catch { /* ignore */ }
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadOrgs();
+  }, [stateOrgId, storedOrgId, initialOrgId]);
 
   const MIN_PROJECT_NAME = 3;
   const MAX_PROJECT_NAME = 200;
@@ -124,15 +127,37 @@ const NewProject: React.FC = () => {
             : 'Create a project in your organization.'}
         </p>
         {loading ? (
-          <div className="text-slate-500 dark:text-slate-400">Loading...</div>
+          <div className="flex items-center justify-center py-8">
+            <span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {organizationName && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Organization</label>
-                <p className="text-slate-900 dark:text-white font-medium">{organizationName}</p>
-              </div>
-            )}
+            <div>
+              <label htmlFor="orgSelect" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Organization
+              </label>
+              {myOrgs.length === 0 ? (
+                <p className="text-sm text-red-500 dark:text-red-400">
+                  Bạn chưa thuộc tổ chức nào. Vui lòng <Link to="/new-organization" className="text-primary underline">tạo tổ chức</Link> trước.
+                </p>
+              ) : (
+                <select
+                  id="orgSelect"
+                  value={organizationId}
+                  onChange={(e) => {
+                    setOrganizationId(e.target.value);
+                    sessionStorage.setItem(NEW_PROJECT_ORG_KEY, e.target.value);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                >
+                  {myOrgs.map((org) => (
+                    <option key={org.organizationId} value={org.organizationId}>
+                      {org.organizationName?.trim() || 'Unnamed'} ({org.role})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Project name
@@ -152,7 +177,7 @@ const NewProject: React.FC = () => {
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !organizationId}
                 className="px-6 py-2.5 bg-primary text-white font-medium rounded-xl hover:bg-primary/90 disabled:opacity-50"
               >
                 {submitting ? 'Creating…' : 'Create project'}
