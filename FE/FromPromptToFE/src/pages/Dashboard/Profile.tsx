@@ -22,6 +22,29 @@ const Profile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState('');
+  const [avatarInput, setAvatarInput] = useState('');
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (jpg, png, gif...)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must not exceed 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setAvatarInput(result);
+      setShowAvatarModal(false);
+    };
+    reader.readAsDataURL(file);
+  };
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -46,6 +69,7 @@ const Profile: React.FC = () => {
         setUser(u);
         if (u) {
           setNameInput(u.name ?? '');
+          setAvatarInput(u.avatarUrl ?? '');
           const orgs = await getMyOrganizations(u.id);
           if (!cancelled) setOrganizations(orgs);
         }
@@ -69,10 +93,13 @@ const Profile: React.FC = () => {
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await authService.updateProfile({ name: nameInput.trim() });
+      const res = await authService.updateProfile({ name: nameInput.trim(), avatarUrl: avatarInput.trim() || undefined });
       const content = res.data?.content as Record<string, unknown> | undefined;
       const updated = normalizeUser(content ?? null);
-      if (updated) setUser(updated);
+      if (updated) {
+        setUser(updated);
+        setAvatarInput(updated.avatarUrl ?? '');
+      }
       const message = (res.data as { message?: string })?.message;
       setSuccessMessage(message || 'Profile updated successfully.');
       setTimeout(() => setSuccessMessage(null), 4000);
@@ -215,6 +242,61 @@ const Profile: React.FC = () => {
                   </label>
                 </div>
 
+                <div className="flex flex-col gap-3">
+                  <p className="text-slate-700 dark:text-white text-sm font-medium leading-normal">Profile Picture</p>
+
+                  {/* Preview + buttons row */}
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                      {avatarInput ? (
+                        <img src={avatarInput} alt="Avatar" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <span className="material-symbols-outlined text-slate-400 text-2xl">person</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAvatarModal(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">upload</span>
+                        Upload from device
+                      </button>
+                      {avatarInput && (
+                        <button
+                          type="button"
+                          onClick={() => setAvatarInput('')}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium text-left"
+                        >
+                          Remove image
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* URL input alternative */}
+                  <div className="mt-2">
+                    <p className="text-slate-500 dark:text-slate-400 text-xs mb-1">Or enter image URL directly:</p>
+                    <input
+                      className="form-input flex w-full min-w-0 flex-1 rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/40 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 h-10 px-4 text-sm font-normal transition-all"
+                      placeholder="https://example.com/avatar.jpg"
+                      type="url"
+                      value={avatarInput.startsWith('data:') ? '' : avatarInput}
+                      onChange={(e) => setAvatarInput(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </div>
+
                 {/* Change password: hidden by default, expand when clicked */}
                 <div className="pt-4 border-t border-slate-200 dark:border-[#282e39]">
                   {!showPasswordSection ? (
@@ -319,9 +401,16 @@ const Profile: React.FC = () => {
             <div className="p-8 flex flex-col items-center text-center">
               <div className="relative mb-6">
                 <div
-                  className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-800 bg-cover bg-center border-4 border-white dark:border-slate-900 shadow-lg"
-                  style={{ backgroundImage: user?.avatarUrl ? `url(${user.avatarUrl})` : 'url("https://picsum.photos/200/200")' }}
-                />
+                  className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-800 bg-cover bg-center border-4 border-white dark:border-slate-900 shadow-lg overflow-hidden flex items-center justify-center"
+                >
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-3xl font-bold text-white bg-gradient-to-br from-primary to-purple-600 w-full h-full flex items-center justify-center">
+                      {(user?.name || user?.email || '?').charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
                 <div className="absolute bottom-0 right-0 bg-primary text-white p-1 rounded-full border-2 border-white dark:border-slate-900">
                   <span className="material-symbols-outlined text-xs">verified</span>
                 </div>
@@ -357,8 +446,66 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Avatar Upload Modal */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Choose Profile Picture</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarModal(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.files = dt.files;
+                      fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500 mb-3 block">cloud_upload</span>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Drag and drop image here
+                </p>
+                <p className="text-xs text-slate-400">or click to browse</p>
+                <p className="text-[10px] text-slate-400 mt-2">JPG, PNG, GIF — Max 5MB</p>
+              </div>
+
+              <div className="flex justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAvatarModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Profile;
+
