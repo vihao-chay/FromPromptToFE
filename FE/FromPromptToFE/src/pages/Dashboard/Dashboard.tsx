@@ -85,6 +85,7 @@ const Dashboard: React.FC = () => {
   const [editTarget, setEditTarget] = useState<{ type: 'org'; id: string; name: string; plan?: string } | { type: 'project'; id: string; name: string } | null>(null);
   const [editName, setEditName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'org'; id: string; name: string } | { type: 'project'; id: string; name: string } | null>(null);
+  const [confirmOrg, setConfirmOrg] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -270,7 +271,7 @@ const Dashboard: React.FC = () => {
                 const isMenuOpen = menuOpen === 'org-' + org.id;
                 return (
                   <div key={org.id} className="group relative flex items-center gap-4 p-4 bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 rounded-xl hover:border-primary/50 transition-all shadow-sm hover:shadow-md">
-                    <Link to={`/organizations/${org.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                    <button onClick={() => setConfirmOrg({ id: org.id, name: org.name })} className="flex items-center gap-4 flex-1 min-w-0 text-left">
                       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconStyle.iconBg} ${iconStyle.iconColor}`}>
                         <span className="material-symbols-outlined">{iconStyle.icon}</span>
                       </div>
@@ -278,7 +279,7 @@ const Dashboard: React.FC = () => {
                         <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors truncate">{org.name}</h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400">{org.memberCount ?? 0} members</p>
                       </div>
-                    </Link>
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); setMenuOpen(isMenuOpen ? null : 'org-' + org.id); }}
@@ -507,6 +508,28 @@ const Dashboard: React.FC = () => {
               <button type="button" onClick={confirmDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 text-sm font-medium">
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Navigate Modal */}
+      {confirmOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setConfirmOrg(null)}>
+          <div className="bg-white dark:bg-[#1c2230] rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">
+              Confirm
+            </h4>
+            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6 leading-relaxed">
+              Are you sure you want to navigate to Organization <strong className="text-slate-900 dark:text-white">"{confirmOrg.name}"</strong>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setConfirmOrg(null)} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors">
+                No
+              </button>
+              <Link to={`/organizations/${confirmOrg.id}`} className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 text-sm font-medium transition-colors">
+                Yes
+              </Link>
             </div>
           </div>
         </div>
