@@ -10,8 +10,8 @@ const organizationMemberService = {
     addMember: (organizationId: string, email: string, role: string) => {
         return api.post(`/api/OrganizationMember/invite`, { organizationId, email, role })
     },
-    removeMember: (organizationId: string, memberId: string) => {
-        return api.delete(`/api/OrganizationMember/${organizationId}/member/${memberId}`)
+    removeMember: (memberId: string) => {
+        return api.delete(`/api/OrganizationMember/${memberId}`)
     },
     updateMember: (memberId: string, role: string) => {
         return api.put(`/api/OrganizationMember/${memberId}/role`, { role })
