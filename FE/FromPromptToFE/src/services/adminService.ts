@@ -1,5 +1,10 @@
 import api from './api';
 
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+}
+
 export interface DashboardStats {
   totalUsers: number;
   totalOrganizations: number;
@@ -7,6 +12,10 @@ export interface DashboardStats {
   totalAIGenerations: number;
   verifiedUsers: number;
   unverifiedUsers: number;
+  totalTokensUsed: number;
+  totalTokensRemaining: number;
+  projectsByType: ChartDataPoint[];
+  userGrowth: ChartDataPoint[];
 }
 
 export interface AdminUser {
@@ -32,6 +41,17 @@ export interface AdminProject {
   hasGeneratedCode: boolean;
 }
 
+export interface AdminProjectPreview {
+  id: string;
+  name: string;
+  organizationName: string | null;
+  systemPrompt: string | null;
+  userPrompt: string | null;
+  promptHistory: string | null;
+  generatedTsx: string | null;
+  generatedHtml: string | null;
+}
+
 export interface PagingResult<T> {
   totalItems: T[];
   totalRow: number;
@@ -42,19 +62,37 @@ export interface PagingResult<T> {
 
 const adminService = {
   getDashboardStats: () =>
-    api.get<{ content: DashboardStats }>('/admin/dashboard'),
+    api.get<{ content: DashboardStats }>('/api/admin/stats'),
 
   getUsers: (params: { search?: string; pageIndex?: number; pageSize?: number }) =>
-    api.get<{ content: PagingResult<AdminUser> }>('/admin/users', { params }),
+    api.get<{ content: PagingResult<AdminUser> }>('/api/admin/users', { params }),
+
+  createUser: (data: any) =>
+    api.post<{ content: AdminUser }>('/api/admin/users', data),
+
+  updateUser: (id: string, data: any) =>
+    api.put<{ content: AdminUser }>(`/api/admin/users/${id}`, data),
+
+  deleteUser: (id: string) =>
+    api.delete<{ content: boolean }>(`/api/admin/users/${id}`),
+
+  deleteUsersBulk: (ids: string[]) => 
+    api.delete<{ content: boolean }>('/api/admin/users/bulk', { data: { ids } }),
 
   toggleUserStatus: (id: string) =>
-    api.put<{ content: boolean }>(`/admin/users/${id}/toggle-status`),
+    api.put<{ content: boolean }>(`/api/admin/users/${id}/toggle-status`),
 
   getProjects: (params: { search?: string; pageIndex?: number; pageSize?: number }) =>
-    api.get<{ content: PagingResult<AdminProject> }>('/admin/projects', { params }),
+    api.get<{ content: PagingResult<AdminProject> }>('/api/admin/projects', { params }),
 
   deleteProject: (id: string) =>
-    api.delete<{ content: boolean }>(`/admin/projects/${id}`),
+    api.delete<{ content: boolean }>(`/api/admin/projects/${id}`),
+
+  deleteProjectsBulk: (ids: string[]) =>
+    api.delete<{ content: boolean }>('/api/admin/projects/bulk', { data: { ids } }),
+
+  getProjectPreview: (id: string) =>
+    api.get<{ content: AdminProjectPreview }>(`/api/admin/projects/${id}/preview`)
 };
 
 export default adminService;

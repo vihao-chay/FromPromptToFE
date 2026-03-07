@@ -94,9 +94,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
-        options.MapInboundClaims = false;
         options.Events = new JwtBearerEvents
         {
             OnChallenge = context =>

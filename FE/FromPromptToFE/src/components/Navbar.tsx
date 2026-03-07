@@ -61,24 +61,29 @@ const Navbar: React.FC = () => {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            <Link
-              className={`text-sm font-semibold transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/dashboard"
-            >
-              Dashboard
-            </Link>
-            <Link
-              className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/change-logs"
-            >
-              Change Logs
-            </Link>
-            <Link
-              className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/github-integration"
-            >
-              GitHub
-            </Link>
+            {/* User links — hidden when JWT role === "Admin" */}
+            {role !== 'Admin' && (
+              <>
+                <Link
+                  className={`text-sm font-semibold transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/dashboard"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/change-logs"
+                >
+                  Change Logs
+                </Link>
+                <Link
+                  className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/github-integration"
+                >
+                  GitHub
+                </Link>
+              </>
+            )}
             <Link
               className={`text-sm font-medium transition-colors ${isActive('/profile') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/profile"

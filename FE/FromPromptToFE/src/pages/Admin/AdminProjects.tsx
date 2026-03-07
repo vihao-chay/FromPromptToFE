@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import adminService, { AdminProject } from '../../services/adminService';
+import ProjectPreviewModal from './ProjectPreviewModal';
 
 const PAGE_SIZE = 20;
 
@@ -10,12 +11,22 @@ const AdminProjects: React.FC = () => {
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
     const [loading, setLoading] = useState(true);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Single item deletion
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    // Bulk Delete
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+
+    // Preview Modal
+    const [previewProjectId, setPreviewProjectId] = useState<string | null>(null);
 
     const fetchProjects = useCallback(async (currentPage: number, currentSearch: string) => {
         setLoading(true);
         setError(null);
+        setSelectedIds([]);
         try {
             const res = await adminService.getProjects({
                 search: currentSearch || undefined,
@@ -48,6 +59,7 @@ const AdminProjects: React.FC = () => {
     const handleDelete = async (project: AdminProject) => {
         if (!window.confirm(`Delete "${project.name}"? This cannot be undone.`)) return;
         setDeletingId(project.id);
+        setError(null);
         try {
             await adminService.deleteProject(project.id);
             // Remove from local list + update count
@@ -60,13 +72,43 @@ const AdminProjects: React.FC = () => {
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} projects? This action cannot be undone.`)) return;
+        setBulkDeleting(true);
+        setError(null);
+        try {
+            await adminService.deleteProjectsBulk(selectedIds);
+            setProjects(prev => prev.filter(p => !selectedIds.includes(p.id)));
+            setTotalRow(prev => Math.max(0, prev - selectedIds.length));
+            setSelectedIds([]);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to delete selected projects.');
+        } finally {
+            setBulkDeleting(false);
+        }
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(projects.map(p => p.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectToggle = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+        );
+    };
+
     const totalPages = Math.ceil(totalRow / PAGE_SIZE);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div>
                     <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">
                         Project Monitor
@@ -91,6 +133,23 @@ const AdminProjects: React.FC = () => {
                 </div>
             </div>
 
+            {/* Bulk Actions Header */}
+            <div className={`transition-all duration-300 overflow-hidden ${selectedIds.length > 0 ? 'h-14 mb-4 opacity-100' : 'h-0 mb-0 opacity-0'}`}>
+                <div className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 rounded-lg">
+                    <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                        {selectedIds.length} {(selectedIds.length || 0) > 1 ? 'projects' : 'project'} selected
+                    </span>
+                    <button
+                        onClick={handleBulkDelete}
+                        disabled={bulkDeleting}
+                        className="text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                        {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
+                    </button>
+                </div>
+            </div>
+
             {/* Error */}
             {error && (
                 <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
@@ -99,35 +158,53 @@ const AdminProjects: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2230]">
-                <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2230]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr className="bg-slate-50 dark:bg-slate-900/50">
+                            <th className="px-4 py-4 w-12 text-center">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                    onChange={handleSelectAll}
+                                    checked={projects.length > 0 && selectedIds.length === projects.length}
+                                />
+                            </th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Project</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Organization</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Type</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Code</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Created</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Action</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                         {loading ? (
                             [1, 2, 3, 4, 5].map(i => (
                                 <tr key={i}>
-                                    <td colSpan={6} className="px-6 py-4">
+                                    <td colSpan={7} className="px-6 py-4">
                                         <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
                                     </td>
                                 </tr>
                             ))
                         ) : projects.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
+                                <td colSpan={7} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
                                     No projects found.
                                 </td>
                             </tr>
                         ) : projects.map(project => (
-                            <tr key={project.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <tr key={project.id} className={`transition-colors ${selectedIds.includes(project.id) ? 'bg-primary/5' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
+                                {/* Checkbox */}
+                                <td className="px-4 py-4 text-center">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                        checked={selectedIds.includes(project.id)}
+                                        onChange={() => handleSelectToggle(project.id)}
+                                    />
+                                </td>
+
                                 {/* Project name */}
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
@@ -171,15 +248,26 @@ const AdminProjects: React.FC = () => {
                                         : '—'}
                                 </td>
 
-                                {/* Delete */}
+                                {/* Actions */}
                                 <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(project)}
-                                        disabled={deletingId === project.id}
-                                        className="text-sm font-semibold text-red-500 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        {deletingId === project.id ? '...' : 'Delete'}
-                                    </button>
+                                    <div className="flex items-center justify-end gap-3 text-sm">
+                                        <button
+                                            onClick={() => setPreviewProjectId(project.id)}
+                                            className="font-semibold text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                                            title="Preview Project & Prompts"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">visibility</span>
+                                            Preview
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(project)}
+                                            disabled={deletingId === project.id}
+                                            className="font-semibold text-red-500 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                                            {deletingId === project.id ? '...' : 'Delete'}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -211,6 +299,13 @@ const AdminProjects: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Preview Modal */}
+            <ProjectPreviewModal
+                isOpen={!!previewProjectId}
+                onClose={() => setPreviewProjectId(null)}
+                projectId={previewProjectId}
+            />
         </div>
     );
 };
