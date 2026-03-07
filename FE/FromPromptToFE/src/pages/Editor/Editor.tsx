@@ -245,12 +245,14 @@ const Editor: React.FC = () => {
       setOutputsList(sorted);
       if (sorted.length === 0) return;
       const turns: ChatTurn[] = [];
+      const hasValidCode = (o: typeof sorted[0]) => o.status === 'Success' && (o.generatedTsx ?? '').trim() && !(o.generatedTsx ?? '').startsWith('// Error');
       sorted.forEach((output, idx) => {
+        if (!hasValidCode(output)) return; // Chỉ hiển thị log khi đã gen ra code thành công
         const outputId = output.id ?? output.Id ?? `out-${idx}`;
         const userText = output.systemPrompt ?? '';
         const createdAtStr = output.createdAt ?? output.CreatedAt;
         const completedAt = createdAtStr ? new Date(createdAtStr).getTime() : undefined;
-        const taskStatus = output.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
+        const taskStatus = 'Success' as TaskStatus;
         const steps = parseStepsFromOutput(output.stepOutput);
         turns.push({ id: `user-${outputId}`, role: 'user', text: userText });
         turns.push({
@@ -259,14 +261,15 @@ const Editor: React.FC = () => {
           status: 'done',
           completedAt,
           steps,
-          tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: output.status === 'Success' ? 100 : 0 })),
+          tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: 100 })),
           tsx: output.generatedTsx,
           html: output.generatedHtml,
           outputId,
         });
       });
       setChatTurns(turns);
-      const latest = sorted[sorted.length - 1];
+      const successful = sorted.filter(hasValidCode);
+      const latest = successful[successful.length - 1] ?? sorted[sorted.length - 1];
       const latestId = latest?.id ?? latest?.Id ?? null;
       setSelectedOutputId(latestId);
       setGeneratedTsx(latest?.generatedTsx ?? '');
@@ -378,12 +381,14 @@ const Editor: React.FC = () => {
               const sorted = sortOutputsPastToFuture(list);
               setOutputsList(sorted);
               const turns: ChatTurn[] = [];
+              const hasValidCode = (o: typeof sorted[0]) => o.status === 'Success' && (o.generatedTsx ?? '').trim() && !(o.generatedTsx ?? '').startsWith('// Error');
               sorted.forEach((output, idx) => {
+                if (!hasValidCode(output)) return;
                 const outputId = output.id ?? output.Id ?? `out-${idx}`;
                 const userText = output.systemPrompt ?? '';
                 const createdAtStr = output.createdAt ?? output.CreatedAt;
                 const completedAt = createdAtStr ? new Date(createdAtStr).getTime() : undefined;
-                const taskStatus = output.status === 'Success' ? ('Success' as TaskStatus) : ('Failed' as TaskStatus);
+                const taskStatus = 'Success' as TaskStatus;
                 const steps = parseStepsFromOutput(output.stepOutput);
                 turns.push({ id: `user-${outputId}`, role: 'user', text: userText });
                 turns.push({
@@ -392,14 +397,15 @@ const Editor: React.FC = () => {
                   status: 'done',
                   completedAt,
                   steps,
-                  tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: output.status === 'Success' ? 100 : 0 })),
+                  tasks: TASK_IDS.map((t) => ({ ...t, status: taskStatus, progress: 100 })),
                   tsx: output.generatedTsx,
                   html: output.generatedHtml,
                   outputId,
                 });
               });
               setChatTurns(turns);
-              const latest = sorted[sorted.length - 1];
+              const successful = sorted.filter(hasValidCode);
+              const latest = successful[successful.length - 1] ?? sorted[sorted.length - 1];
               const latestId = latest?.id ?? latest?.Id ?? null;
               setSelectedOutputId(latestId);
               setGeneratedTsx(latest?.generatedTsx ?? '');
@@ -444,11 +450,14 @@ const Editor: React.FC = () => {
         const failedPayload = { systemPrompt: userText, userPrompt: userText, taskStatus: 'Failed', stepOutput: JSON.stringify(steps ?? []), promptHistory: JSON.stringify([...chatTurns.map((t) => ({ role: t.role, content: t.role === 'user' ? t.text : ((t as { steps?: string[] }).steps ?? []).join('\n') })), { role: 'user' as const, content: userText }]) };
         if (projectIdFromUrl) projectOutputService.saveOutput(projectIdFromUrl, failedPayload).catch(() => {});
         setOutputTab('tasks');
+        // Không gen ra code → bỏ log (user + assistant turn) khỏi chat
+        setChatTurns((prev) => prev.filter((t) => t.id !== userTurnId && t.id !== assistantTurnId));
+        return;
       }
       setChatTurns((prev) =>
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === 'assistant'
-            ? { ...turn, status: isError ? 'error' : 'done', completedAt: isError ? undefined : Date.now(), steps: steps?.length >= 4 ? steps : undefined, tasks: finalTasks, tsx, html }
+            ? { ...turn, status: 'done', completedAt: Date.now(), steps: steps?.length >= 4 ? steps : undefined, tasks: finalTasks, tsx, html }
             : turn
         )
       );
@@ -459,13 +468,8 @@ const Editor: React.FC = () => {
       setGeneratedTsx(errorTsx);
       setGeneratedHtml(errorHtml);
       setTasks((prev) => prev.map((t) => ({ ...t, status: t.status === 'Running' ? 'Failed' : t.status, progress: t.status === 'Running' ? 0 : t.progress })));
-      setChatTurns((prev) =>
-        prev.map((turn) =>
-          turn.id === assistantTurnId && turn.role === 'assistant'
-            ? { ...turn, status: 'error', tasks: TASK_IDS.map((t) => ({ ...t, status: 'Failed' as TaskStatus, progress: 0 })), tsx: errorTsx, html: errorHtml }
-            : turn
-        )
-      );
+      // Không gen ra code (lỗi API/key) → bỏ log khỏi chat, không hiển thị bubble
+      setChatTurns((prev) => prev.filter((t) => t.id !== userTurnId && t.id !== assistantTurnId));
       setOutputTab('tasks');
     } finally {
       setIsSaving(false);
