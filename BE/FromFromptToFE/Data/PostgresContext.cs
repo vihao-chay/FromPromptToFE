@@ -183,9 +183,15 @@ public partial class PostgresContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("created_at");
             entity.Property(e => e.OrganizationId).HasColumnName("organization_id");
+            entity.Property(e => e.InviteToken)
+                .HasColumnType("character varying")
+                .HasColumnName("invite_token");
             entity.Property(e => e.Role)
                 .HasColumnType("character varying")
                 .HasColumnName("role");
+            entity.Property(e => e.Status)
+                .HasColumnType("character varying")
+                .HasColumnName("status");
             entity.Property(e => e.UserId).HasColumnName("user_id");
 
             entity.HasOne(d => d.Organization).WithMany(p => p.OrganizationMembers)

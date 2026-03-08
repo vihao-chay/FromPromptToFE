@@ -9,5 +9,6 @@ namespace FromFromptToFE.Repositories
     {
         Task<(IEnumerable<OrganizationMember> Items, int TotalCount)> GetPagedMembersAsync(Guid organizationId, string? search, int pageIndex, int pageSize);
         Task<IEnumerable<OrganizationMember>> GetByUserIdAsync(Guid userId);
+        Task<OrganizationMember?> FindByInviteTokenAsync(string token);
     }
 }

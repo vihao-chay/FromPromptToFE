@@ -4,6 +4,7 @@ using FromFromptToFE.DTOs;
 using FromFromptToFE.Models;
 using FromFromptToFE.Repositories;
 using FromFromptToFE.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,18 +20,22 @@ namespace FromFromptToFE.Services
         private readonly IEmailService _emailService;
         private readonly IMapper _mapper;
 
+        private readonly IConfiguration _configuration;
+
         public OrganizationMemberService(
             IOrganizationMemberRepository repository, 
             IUserRepository userRepository,
             IOrganizationRepository organizationRepository,
             IEmailService emailService,
-            IMapper mapper)
+            IMapper mapper,
+            IConfiguration configuration)
         {
             _repository = repository;
             _userRepository = userRepository;
             _organizationRepository = organizationRepository;
             _emailService = emailService;
             _mapper = mapper;
+            _configuration = configuration;
         }
 
         public async Task<PagingResult<OrganizationMemberDto>> GetMembersByOrgIdAsync(Guid organizationId, MemberFilterDto filter)
@@ -79,45 +84,74 @@ namespace FromFromptToFE.Services
                 throw new KeyNotFoundException("Không tìm thấy tổ chức");
             }
 
-            // 3. Kiểm tra xem user này đã trong tổ chức chưa
+            // 3. Kiểm tra xem user này đã trong tổ chức chưa (hoặc đang có lời mời chờ)
             var existingMember = await _repository.FindAsync(m => m.OrganizationId == inviteDto.OrganizationId && m.UserId == user.Id);
             if (existingMember != null)
             {
-                throw new InvalidOperationException($"Người dùng {inviteDto.Email} đã là thành viên của tổ chức");
+                if (existingMember.Status == "Joined" || string.IsNullOrEmpty(existingMember.Status))
+                    throw new InvalidOperationException($"Người dùng {inviteDto.Email} đã là thành viên của tổ chức");
+                if (existingMember.Status == "Invite")
+                    throw new InvalidOperationException("Đã gửi lời mời, đang chờ phản hồi.");
             }
 
-            // 4. Add Member
+            // 4. Add Member với trạng thái Invite và token
+            var inviteToken = Guid.NewGuid().ToString("N");
             var member = new OrganizationMember
             {
                 Id = Guid.NewGuid(),
                 OrganizationId = inviteDto.OrganizationId,
                 UserId = user.Id,
                 Role = inviteDto.Role.ToString(),
+                Status = "Invite",
+                InviteToken = inviteToken,
                 CreatedAt = DateTime.UtcNow
             };
-            
             await _repository.AddAsync(member);
 
-            // 5. Gửi email thông báo
-            // Ở đây vì hàm chạy bất đồng bộ và có catch lỗi bên trong, ta chỉ gọi mà không chặn flow chính nếu mail lỗi (tùy vào design)
-            // Hiện tại EmailService throw lỗi nếu send fail, có thể bọc try catch để không hỏng quá trình add
+            // 5. Link cho email: frontend sẽ gọi API join/reject với token
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var joinLink = $"{frontendUrl}/join-organization?token={inviteToken}";
+            var rejectLink = $"{frontendUrl}/reject-organization?token={inviteToken}";
+
             try
             {
                 await _emailService.SendOrganizationInviteEmailAsync(
-                    user.Email, 
-                    string.IsNullOrEmpty(user.Name) ? "Bạn" : user.Name, 
-                    org.Name, 
-                    inviteDto.Role.ToString());
+                    user.Email,
+                    string.IsNullOrEmpty(user.Name) ? "Bạn" : user.Name,
+                    org.Name,
+                    inviteDto.Role.ToString(),
+                    joinLink,
+                    rejectLink);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ghi log lỗi gửi mail nhưng vẫn trả về ok vì add member đã xong
-                // Logger could be injected here
+                // Log lỗi gửi mail nhưng vẫn trả về ok vì add member đã xong
+                Console.WriteLine($"[ERROR] Gửi email mời thất bại cho {inviteDto.Email}: {ex.Message}");
             }
 
             // 6. Return DTO
             var addedMember = await _repository.GetPagedMembersAsync(member.OrganizationId, member.UserId.ToString(), 1, 1);
             return _mapper.Map<OrganizationMemberDto>(addedMember.Items.FirstOrDefault());
+        }
+
+        public async Task<bool> AcceptInviteByTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+            var member = await _repository.FindByInviteTokenAsync(token);
+            if (member == null || member.Status != "Invite") return false;
+            member.Status = "Joined";
+            member.InviteToken = null;
+            await _repository.UpdateAsync(member);
+            return true;
+        }
+
+        public async Task<bool> RejectInviteByTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+            var member = await _repository.FindByInviteTokenAsync(token);
+            if (member == null) return false;
+            await _repository.DeleteAsync(member);
+            return true;
         }
 
         public async Task<bool> UpdateMemberRoleAsync(Guid memberId, UpdateMemberRoleDto updateDto)

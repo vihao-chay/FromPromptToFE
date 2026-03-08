@@ -73,6 +73,26 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<bool>.Ok(true, "Xóa thành viên khỏi tổ chức thành công");
         }
 
+        /// <summary>Chấp nhận lời mời tham gia tổ chức (từ link trong email). Token trong query.</summary>
+        [HttpPost("join")]
+        [AllowAnonymous]
+        public async Task<IActionResult> JoinByToken([FromQuery] string token)
+        {
+            var ok = await _service.AcceptInviteByTokenAsync(token);
+            if (!ok) return ResponseEntity<bool>.Fail("Link không hợp lệ hoặc đã được xử lý.");
+            return ResponseEntity<bool>.Ok(true, "Bạn đã tham gia tổ chức thành công.");
+        }
+
+        /// <summary>Từ chối lời mời tham gia tổ chức (từ link trong email). Token trong query.</summary>
+        [HttpPost("reject")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RejectByToken([FromQuery] string token)
+        {
+            var ok = await _service.RejectInviteByTokenAsync(token);
+            if (!ok) return ResponseEntity<bool>.Fail("Link không hợp lệ hoặc đã được xử lý.");
+            return ResponseEntity<bool>.Ok(true, "Bạn đã từ chối lời mời.");
+        }
+
         /// <summary>Get organizations for the current user (from JWT). Route userId is ignored; always uses DB for JWT user.</summary>
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetMyOrganizations(Guid userId)

@@ -29,7 +29,8 @@ namespace FromFromptToFE.Mappings
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
                 .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email))
                 .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src => src.User.AvatarUrl))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => Enum.Parse<OrganizationRole>(src.Role)));
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => Enum.Parse<OrganizationRole>(src.Role)))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status ?? "Joined"));
 
             CreateMap<AddMemberDto, OrganizationMember>()
                 .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
