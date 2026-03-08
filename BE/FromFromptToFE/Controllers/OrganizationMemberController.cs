@@ -11,7 +11,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class OrganizationMemberController : ControllerBase
     {
         private readonly IOrganizationMemberService _service;

@@ -10,7 +10,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class ProjectOutputController : ControllerBase
     {
         private readonly IProjectOutputService _service;

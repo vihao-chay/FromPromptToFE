@@ -4,7 +4,6 @@ namespace FromFromptToFE.Enums
     {
         Owner = 0,
         Admin = 1,
-        Member = 2,
-        Viewer = 3
+        Developer = 2,
     }
 }

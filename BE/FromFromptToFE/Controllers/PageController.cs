@@ -10,7 +10,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class PageController : ControllerBase
     {
         private readonly IPageService _service;

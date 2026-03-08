@@ -11,7 +11,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class OrganizationController : ControllerBase
     {
         private readonly IOrganizationService _service;
@@ -23,7 +22,6 @@ namespace FromFromptToFE.Controllers
             _memberService = memberService;
         }
 
-        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] OrganizationFilterDto filter)
         {
@@ -46,7 +44,6 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<OrganizationDto>.Ok(organization, "Lấy thông tin tổ chức thành công");
         }
 
-        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateOrganizationDto createDto)
         {

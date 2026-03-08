@@ -14,6 +14,6 @@ namespace FromFromptToFE.DTOs
         public string Email { get; set; } = null!;
 
         [Required(ErrorMessage = "Vai trò là bắt buộc")]
-        public OrganizationRole Role { get; set; } = OrganizationRole.Member;
+        public OrganizationRole Role { get; set; } = OrganizationRole.Developer;
     }
 }
