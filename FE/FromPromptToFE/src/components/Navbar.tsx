@@ -1,6 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import authService from '../services/authService';
 
 /** Decode JWT payload without any library — just base64 the middle part */
 const getJwtRole = (): string | null => {
@@ -21,6 +22,30 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const role = useMemo(getJwtRole, [location.pathname]); // re-check on route change
 
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userInitial, setUserInitial] = useState<string>('');
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const res = await authService.getMe();
+        const c = res.data?.content as unknown as Record<string, unknown> | undefined;
+        if (!c) return;
+        const avatar = c.avatarUrl ?? c.AvatarUrl;
+        if (avatar && typeof avatar === 'string' && avatar.trim()) {
+          setUserAvatar(avatar);
+        }
+        const name = (c.name ?? c.Name ?? c.email ?? c.Email ?? '') as string;
+        setUserInitial(name.charAt(0).toUpperCase());
+      } catch { /* ignore */ }
+    };
+    loadUser();
+
+    const handleLogout = () => { setUserAvatar(null); setUserInitial(''); };
+    window.addEventListener('auth-logout', handleLogout);
+    return () => window.removeEventListener('auth-logout', handleLogout);
+  }, [location.pathname]);
+
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -36,24 +61,29 @@ const Navbar: React.FC = () => {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
-            <Link
-              className={`text-sm font-semibold transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/dashboard"
-            >
-              Dashboard
-            </Link>
-            <Link
-              className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/change-logs"
-            >
-              Change Logs
-            </Link>
-            <Link
-              className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
-              to="/github-integration"
-            >
-              GitHub
-            </Link>
+            {/* User links — hidden when JWT role === "Admin" */}
+            {role !== 'Admin' && (
+              <>
+                <Link
+                  className={`text-sm font-semibold transition-colors ${isActive('/dashboard') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/dashboard"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/change-logs"
+                >
+                  Change Logs
+                </Link>
+                <Link
+                  className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
+                  to="/github-integration"
+                >
+                  GitHub
+                </Link>
+              </>
+            )}
             <Link
               className={`text-sm font-medium transition-colors ${isActive('/profile') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
               to="/profile"
@@ -65,8 +95,8 @@ const Navbar: React.FC = () => {
             {role === 'Admin' && (
               <Link
                 className={`text-sm font-semibold transition-colors flex items-center gap-1 ${isActive('/admin')
-                    ? 'text-primary'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-primary'
+                  ? 'text-primary'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-primary'
                   }`}
                 to="/admin"
               >
@@ -77,8 +107,16 @@ const Navbar: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link to="/profile" className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20">
-              <div className="w-full h-full bg-gradient-to-br from-primary to-purple-600"></div>
+            <Link to="/profile" className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20 flex items-center justify-center">
+              {userAvatar ? (
+                <img src={userAvatar} alt="Avatar" className="h-full w-full object-cover" />
+              ) : userInitial ? (
+                <span className="text-sm font-bold text-white bg-gradient-to-br from-primary to-purple-600 w-full h-full flex items-center justify-center">
+                  {userInitial}
+                </span>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary to-purple-600"></div>
+              )}
             </Link>
           </div>
         </div>

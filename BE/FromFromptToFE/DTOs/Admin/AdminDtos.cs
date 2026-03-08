@@ -1,5 +1,11 @@
 namespace FromFromptToFE.DTOs.Admin
 {
+    public class ChartDataPointDto
+    {
+        public string Name { get; set; } = null!;
+        public int Value { get; set; }
+    }
+
     // GET /admin/dashboard
     public class DashboardStatsDto
     {
@@ -9,6 +15,10 @@ namespace FromFromptToFE.DTOs.Admin
         public int TotalAIGenerations { get; set; }
         public int VerifiedUsers { get; set; }
         public int UnverifiedUsers { get; set; }
+        public int TotalTokensUsed { get; set; }
+        public int TotalTokensRemaining { get; set; }
+        public List<ChartDataPointDto> ProjectsByType { get; set; } = new();
+        public List<ChartDataPointDto> UserGrowth { get; set; } = new();
     }
 
     // GET /admin/users
@@ -52,5 +62,38 @@ namespace FromFromptToFE.DTOs.Admin
         public string? Search { get; set; }
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 20;
+    }
+
+    public class CreateAdminUserDto
+    {
+        public string Email { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string Password { get; set; } = null!;
+        public bool IsAdmin { get; set; }
+    }
+
+    public class UpdateAdminUserDto
+    {
+        public string Email { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public bool IsAdmin { get; set; }
+        public string Status { get; set; } = null!; // "Active" or something else
+    }
+
+    public class BulkDeleteDto
+    {
+        public List<Guid> Ids { get; set; } = new List<Guid>();
+    }
+
+    public class AdminProjectPreviewDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string? OrganizationName { get; set; }
+        public string? SystemPrompt { get; set; }
+        public string? UserPrompt { get; set; }
+        public string? PromptHistory { get; set; }
+        public string? GeneratedTsx { get; set; }
+        public string? GeneratedHtml { get; set; }
     }
 }

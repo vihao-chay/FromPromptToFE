@@ -19,10 +19,12 @@ export interface UserOrganizationDto {
 
 const authService = {
   /** Pass token (e.g. after OAuth) to send it explicitly so the request is authenticated. */
-  getMe: (token?: string) =>
-    api.get<{ content: UserDto }>("/auth/me", token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
-  updateProfile: (payload: { name?: string; avatarUrl?: string }) =>
-    api.patch<{ content: UserDto }>("/auth/me", payload),
+  getMe: (token?: string) => {
+    return api.get<{ content: UserDto }>("/auth/me", token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+  },
+  updateProfile: (payload: { name?: string; avatarUrl?: string }) => {
+    return api.patch<{ content: UserDto }>("/auth/me", payload);
+  },
   login: (email: string, password: string) => {
     return api.post("/auth/login", { email, password });
   },
@@ -68,7 +70,7 @@ export async function getMyOrganizations(userId: string) {
   const raw = Array.isArray(content)
     ? content
     : ((content as unknown as { TotalItems?: UserOrganizationDto[] })
-        ?.TotalItems ?? []);
+      ?.TotalItems ?? []);
   return (Array.isArray(raw) ? raw : []).map((o: Record<string, unknown>) => ({
     organizationId: String(o.organizationId ?? o.OrganizationId ?? ""),
     organizationName: String(o.organizationName ?? o.OrganizationName ?? ""),

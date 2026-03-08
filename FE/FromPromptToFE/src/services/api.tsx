@@ -18,7 +18,8 @@ api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("token");
         if (token && isJwtLike(token)) {
-            config.headers["Authorization"] = `Bearer ${token}`;
+            // Safe assignment for Axios config headers
+            config.headers.Authorization = `Bearer ${token}`;
         } else if (token) {
             // Invalid token (e.g. not a JWT) – clear it so we don't keep sending it and get 401
             localStorage.removeItem("token");

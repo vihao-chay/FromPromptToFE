@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import adminService, { AdminUser } from '../../services/adminService';
+import CreateUserModal from './CreateUserModal';
+import EditUserModal from './EditUserModal';
 
 const PAGE_SIZE = 20;
 
@@ -11,11 +13,21 @@ const AdminUsers: React.FC = () => {
     const [searchInput, setSearchInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Bulk Delete
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+
+    // Modals
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
     const fetchUsers = useCallback(async (currentPage: number, currentSearch: string) => {
         setLoading(true);
         setError(null);
+        setSelectedIds([]); // clear selection on fetch
         try {
             const res = await adminService.getUsers({
                 search: currentSearch || undefined,
@@ -50,7 +62,6 @@ const AdminUsers: React.FC = () => {
         setTogglingId(user.id);
         try {
             await adminService.toggleUserStatus(user.id);
-            // Update locally without re-fetching
             setUsers(prev =>
                 prev.map(u => u.id === user.id ? { ...u, isVerified: !u.isVerified, isActive: !u.isActive } : u)
             );
@@ -61,13 +72,58 @@ const AdminUsers: React.FC = () => {
         }
     };
 
+    const handleDeleteUser = async (user: AdminUser) => {
+        if (!window.confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) return;
+        setDeletingId(user.id);
+        setError(null);
+        try {
+            await adminService.deleteUser(user.id);
+            setUsers(prev => prev.filter(u => u.id !== user.id));
+            setTotalRow(prev => prev - 1);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to delete user.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} users? This action cannot be undone.`)) return;
+        setBulkDeleting(true);
+        setError(null);
+        try {
+            await adminService.deleteUsersBulk(selectedIds);
+            setUsers(prev => prev.filter(u => !selectedIds.includes(u.id)));
+            setTotalRow(prev => Math.max(0, prev - selectedIds.length));
+            setSelectedIds([]);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to delete selected users.');
+        } finally {
+            setBulkDeleting(false);
+        }
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedIds(users.map(u => u.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectToggle = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(uid => uid !== id) : [...prev, id]
+        );
+    };
+
     const totalPages = Math.ceil(totalRow / PAGE_SIZE);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div>
                     <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-1">
                         User Management
@@ -77,18 +133,45 @@ const AdminUsers: React.FC = () => {
                     </p>
                 </div>
 
-                {/* Search */}
-                <div className="relative w-full sm:w-64">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
-                        search
+                <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Search */}
+                    <div className="relative w-full sm:w-64">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+                            search
+                        </span>
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            value={searchInput}
+                            onChange={e => setSearchInput(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#1c2230] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                    </div>
+
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center gap-2 justify-center px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shrink-0"
+                    >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        Create User
+                    </button>
+                </div>
+            </div>
+
+            {/* Bulk Actions Header */}
+            <div className={`transition-all duration-300 overflow-hidden ${selectedIds.length > 0 ? 'h-14 mb-4 opacity-100' : 'h-0 mb-0 opacity-0'}`}>
+                <div className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 rounded-lg">
+                    <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                        {selectedIds.length} {(selectedIds.length || 0) > 1 ? 'users' : 'user'} selected
                     </span>
-                    <input
-                        type="text"
-                        placeholder="Search by name or email..."
-                        value={searchInput}
-                        onChange={e => setSearchInput(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#1c2230] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    />
+                    <button
+                        onClick={handleBulkDelete}
+                        disabled={bulkDeleting}
+                        className="text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                        {bulkDeleting ? 'Deleting...' : 'Delete Selected'}
+                    </button>
                 </div>
             </div>
 
@@ -100,101 +183,140 @@ const AdminUsers: React.FC = () => {
             )}
 
             {/* Table */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2230]">
-                <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2230]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr className="bg-slate-50 dark:bg-slate-900/50">
+                            <th className="px-4 py-4 w-12 text-center">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                    onChange={handleSelectAll}
+                                    checked={users.length > 0 && selectedIds.length === users.length}
+                                />
+                            </th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">User</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Provider</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Role</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Joined</th>
-                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Action</th>
+                            <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                         {loading ? (
                             [1, 2, 3, 4, 5].map(i => (
                                 <tr key={i}>
-                                    <td colSpan={6} className="px-6 py-4">
+                                    <td colSpan={7} className="px-6 py-4">
                                         <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
                                     </td>
                                 </tr>
                             ))
                         ) : users.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
+                                <td colSpan={7} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
                                     No users found.
                                 </td>
                             </tr>
                         ) : users.map(user => (
-                            <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                                {/* User */}
+                            <tr key={user.id} className={`transition-colors ${selectedIds.includes(user.id) ? 'bg-primary/5' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
+                                <td className="px-4 py-4 text-center">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                        checked={selectedIds.includes(user.id)}
+                                        onChange={() => handleSelectToggle(user.id)}
+                                    />
+                                </td>
+                                {/* User name/email */}
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        {user.avatarUrl ? (
-                                            <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                                                <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-base">person</span>
-                                            </div>
-                                        )}
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-slate-900 dark:text-white text-sm truncate">
-                                                {user.name || '—'}
+                                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                            {user.avatarUrl ? (
+                                                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="font-bold text-slate-400 text-sm">
+                                                    {(user.name || user.email).charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white text-sm">
+                                                {user.name || 'No Name'}
                                             </p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                {user.email}
+                                            </p>
                                         </div>
                                     </div>
                                 </td>
 
                                 {/* Provider */}
                                 <td className="px-6 py-4">
-                                    <span className="text-sm text-slate-600 dark:text-slate-300 capitalize">{user.provider}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium capitalize">
+                                        {user.provider}
+                                    </span>
                                 </td>
 
                                 {/* Status */}
                                 <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.isActive
-                                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                        }`}>
-                                        {user.isActive ? 'Active' : 'Inactive'}
-                                    </span>
+                                    {user.isVerified ? (
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 font-medium">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                            Active
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                            Inactive
+                                        </span>
+                                    )}
                                 </td>
 
                                 {/* Role */}
                                 <td className="px-6 py-4">
                                     {user.isAdmin ? (
-                                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                                            Admin
+                                        <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold tracking-wide">
+                                            ADMIN
                                         </span>
                                     ) : (
-                                        <span className="text-sm text-slate-500 dark:text-slate-400">User</span>
+                                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                            User
+                                        </span>
                                     )}
                                 </td>
 
-                                {/* Joined */}
+                                {/* Joined Date */}
                                 <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                                     {user.createdAt
                                         ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
                                         : '—'}
                                 </td>
 
-                                {/* Action */}
+                                {/* Actions */}
                                 <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleToggleStatus(user)}
-                                        disabled={togglingId === user.id}
-                                        className={`text-sm font-semibold transition-colors ${user.isActive
-                                                ? 'text-red-500 hover:text-red-600'
-                                                : 'text-green-600 hover:text-green-700'
-                                            } disabled:opacity-40 disabled:cursor-not-allowed`}
-                                    >
-                                        {togglingId === user.id
-                                            ? '...'
-                                            : user.isActive ? 'Deactivate' : 'Activate'}
-                                    </button>
+                                    <div className="flex items-center justify-end gap-3 text-sm">
+                                        <button
+                                            onClick={() => handleToggleStatus(user)}
+                                            disabled={togglingId === user.id}
+                                            className="font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors disabled:opacity-40"
+                                        >
+                                            {togglingId === user.id ? '...' : (user.isVerified ? 'Deactivate' : 'Activate')}
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingUser(user)}
+                                            className="font-bold text-blue-500 hover:text-blue-600 transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteUser(user)}
+                                            disabled={deletingId === user.id}
+                                            className="font-bold text-red-500 hover:text-red-600 transition-colors disabled:opacity-40"
+                                        >
+                                            {deletingId === user.id ? '...' : 'Delete'}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -226,6 +348,25 @@ const AdminUsers: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modals */}
+            <CreateUserModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onUserCreated={() => {
+                    setIsCreateModalOpen(false);
+                    fetchUsers(page, search);
+                }}
+            />
+
+            <EditUserModal
+                isOpen={!!editingUser}
+                onClose={() => setEditingUser(null)}
+                user={editingUser}
+                onUserUpdated={(updatedData) => {
+                    setUsers(prev => prev.map(u => u.id === editingUser?.id ? { ...u, ...updatedData } : u));
+                }}
+            />
         </div>
     );
 };
