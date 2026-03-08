@@ -30,6 +30,15 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<ChangeLogDto>.Ok(result, "Tạo change log thành công");
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var result = await _service.GetByIdAsync(id);
+            if (result == null)
+                return ResponseEntity<ChangeLogDto>.Fail("Không tìm thấy change log", 404);
+            return ResponseEntity<ChangeLogDto>.Ok(result, "Lấy thông tin change log thành công");
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] ChangeLogFilterDto filter)
         {
