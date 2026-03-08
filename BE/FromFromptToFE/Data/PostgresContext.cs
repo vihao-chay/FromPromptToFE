@@ -375,6 +375,9 @@ public partial class PostgresContext : DbContext
             entity.Property(e => e.GitHubId)
                 .HasColumnType("character varying")
                 .HasColumnName("GitHubId");
+            entity.Property(e => e.GitHubAccessToken)
+                .HasColumnType("text")
+                .HasColumnName("GitHubAccessToken");
             entity.Property(e => e.IsAdmin)
                 .HasDefaultValue(false)
                 .HasColumnName("is_admin");

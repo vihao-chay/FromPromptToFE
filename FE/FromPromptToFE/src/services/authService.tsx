@@ -7,6 +7,7 @@ export interface UserDto {
   avatarUrl?: string;
   createdAt?: string;
   provider?: string;
+  gitHubId?: string | null;
 }
 
 export interface UserOrganizationDto {
@@ -59,6 +60,12 @@ const authService = {
   },
   refreshToken: (refreshToken: string) => {
     return api.post("/auth/refresh-token", { refreshToken });
+  },
+  disconnectGitHub: () => {
+    return api.delete("/auth/github");
+  },
+  linkGitHub: (code: string) => {
+    return api.post<{ content: UserDto }>("/auth/github/link", { code });
   },
 };
 

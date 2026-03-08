@@ -343,6 +343,7 @@ namespace FromFromptToFE.Services
                             Email = email,
                             Name = name,
                             GitHubId = githubId,
+                            GitHubAccessToken = accessToken,
                             AvatarUrl = avatarUrl,
                             IsVerified = true,
                             Provider = "github",
@@ -354,6 +355,7 @@ namespace FromFromptToFE.Services
                     else if (user.GitHubId == null)
                     {
                         user.GitHubId = githubId;
+                        user.GitHubAccessToken = accessToken;
                         user.AvatarUrl = avatarUrl ?? user.AvatarUrl;
                         user.UpdatedAt = DateTime.UtcNow;
                         await _userRepository.UpdateAsync(user);
@@ -476,6 +478,98 @@ namespace FromFromptToFE.Services
             await _userRepository.UpdateAsync(user);
 
             await _emailService.SendVerificationEmailAsync(user.Email, user.Name ?? "User", user.VerifyToken);
+        }
+
+        public async Task<UserDto> LinkGitHubAsync(Guid userId, string code)
+        {
+            // Step 1: Exchange code for GitHub access token
+            string accessToken;
+            using (var httpClient = new HttpClient())
+            {
+                var clientId = _configuration["GitHub:ClientId"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_ID");
+                var clientSecret = _configuration["GitHub:ClientSecret"] ?? Environment.GetEnvironmentVariable("GITHUB_CLIENT_SECRET");
+                var redirectUri = _configuration["GitHub:RedirectUri"] ?? "http://localhost:5173/auth/github/callback";
+
+                if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+                    throw new Exception("GitHub OAuth is not configured.");
+
+                httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+                var tokenResponse = await httpClient.PostAsJsonAsync(
+                    "https://github.com/login/oauth/access_token",
+                    new { client_id = clientId, client_secret = clientSecret, code, redirect_uri = redirectUri }
+                );
+                var tokenContent = await tokenResponse.Content.ReadAsStringAsync();
+
+                if (tokenContent.TrimStart().StartsWith("{"))
+                {
+                    var json = System.Text.Json.JsonDocument.Parse(tokenContent).RootElement;
+                    if (json.TryGetProperty("error", out var errEl))
+                    {
+                        var desc = json.TryGetProperty("error_description", out var d) ? d.GetString() : "";
+                        throw new Exception($"GitHub OAuth: {errEl.GetString()} - {desc}");
+                    }
+                    accessToken = json.GetProperty("access_token").GetString() ?? throw new Exception("Access token empty");
+                }
+                else
+                {
+                    var tokenParams = System.Web.HttpUtility.ParseQueryString(tokenContent);
+                    var err = tokenParams["error"];
+                    if (!string.IsNullOrEmpty(err))
+                        throw new Exception($"GitHub OAuth: {err} - {tokenParams["error_description"]}");
+                    accessToken = tokenParams["access_token"] ?? throw new Exception("Access token not found");
+                }
+            }
+
+            // Step 2: Get GitHub user info
+            string githubId;
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "FromPromptToFE");
+
+                var userInfoResponse = await httpClient.GetAsync("https://api.github.com/user");
+                if (!userInfoResponse.IsSuccessStatusCode)
+                    throw new Exception($"GitHub API error: {userInfoResponse.StatusCode}");
+
+                var userInfoContent = await userInfoResponse.Content.ReadAsStringAsync();
+                var githubUser = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(userInfoContent)!;
+                githubId = githubUser.id.ToString();
+
+                // Ensure no other account already has this GitHubId
+                var existingWithGitHub = await _userRepository.GetByGitHubIdAsync(githubId);
+                if (existingWithGitHub != null && existingWithGitHub.Id != userId)
+                    throw new Exception("This GitHub account is already linked to another user.");
+            }
+
+            // Step 3: Link to current user
+            var user = await _userRepository.GetByIdAsync(userId)
+                ?? throw new Exception("User not found");
+
+            user.GitHubId = githubId;
+            user.GitHubAccessToken = accessToken;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+
+            return _mapper.Map<UserDto>(user);
+        }
+
+        public async Task<bool> DisconnectGitHubAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            if (string.IsNullOrEmpty(user.GitHubId))
+                return false; // Nothing to disconnect
+
+            user.GitHubId = null;
+            user.GitHubAccessToken = null;
+            // If user only has GitHub as provider and has a password, switch back to local
+            if (user.Provider == "github" && !string.IsNullOrEmpty(user.PasswordHash))
+                user.Provider = "local";
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+            return true;
         }
 
         public async Task<AuthResponseDto?> RefreshTokenAsync(RefreshTokenDto dto)

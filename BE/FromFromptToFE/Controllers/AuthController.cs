@@ -227,5 +227,53 @@ namespace FromFromptToFE.Controllers
                 return ResponseEntity<AuthResponseDto>.Fail(ex.Message);
             }
         }
+
+        [Authorize]
+        [HttpPost("github/link")]
+        public async Task<IActionResult> LinkGitHub([FromBody] GitHubLoginDto dto)
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
+                    return ResponseEntity<object>.Fail("Missing or invalid token", 401);
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                    return ResponseEntity<object>.Fail("Invalid user identifier", 401);
+
+                var user = await _authService.LinkGitHubAsync(userId, dto.Code);
+                return ResponseEntity<UserDto>.Ok(user, "GitHub account linked successfully");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("github")]
+        public async Task<IActionResult> DisconnectGitHub()
+        {
+            try
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
+                    return ResponseEntity<object>.Fail("Missing or invalid token", 401);
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                    return ResponseEntity<object>.Fail("Invalid user identifier", 401);
+
+                var result = await _authService.DisconnectGitHubAsync(userId);
+                if (!result)
+                    return ResponseEntity<object>.Fail("GitHub account is not linked or user not found", 400);
+
+                return ResponseEntity<object>.Ok(null, "GitHub account disconnected successfully");
+            }
+            catch (Exception ex)
+            {
+                return ResponseEntity<object>.Fail(ex.Message);
+            }
+        }
     }
 }

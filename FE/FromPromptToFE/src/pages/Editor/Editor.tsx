@@ -784,7 +784,7 @@ const Editor: React.FC = () => {
                       {copied ? 'Copied!' : 'Copy'}
                     </button>
                     <Link
-                      to="/github-integration"
+                      to={`/github-integration${projectIdFromUrl ? `?projectId=${projectIdFromUrl}` : ''}`}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 text-xs font-semibold"
                     >
                       <span className="material-symbols-outlined text-sm">upload</span>

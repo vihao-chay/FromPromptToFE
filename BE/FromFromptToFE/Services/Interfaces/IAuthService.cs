@@ -18,5 +18,7 @@ namespace FromFromptToFE.Services
         Task<UserDto?> UpdateProfileAsync(Guid userId, UpdateProfileDto dto);
         Task ResendVerificationEmailAsync(ResendVerificationDto dto);
         Task<AuthResponseDto?> RefreshTokenAsync(RefreshTokenDto dto);
+        Task<bool> DisconnectGitHubAsync(Guid userId);
+        Task<UserDto> LinkGitHubAsync(Guid userId, string code);
     }
 }

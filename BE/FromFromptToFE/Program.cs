@@ -138,6 +138,7 @@ builder.Services.AddScoped<ICodeGenService, CodeGenService>();
 // New ProjectOutput & Page Services
 builder.Services.AddScoped<IProjectOutputRepository, ProjectOutputRepository>();
 builder.Services.AddScoped<IProjectOutputService, ProjectOutputService>();
+builder.Services.AddScoped<IGitHubPushService, GitHubPushService>();
 builder.Services.AddScoped<IPageRepository, PageRepository>();
 builder.Services.AddScoped<IPageService, PageService>();
 

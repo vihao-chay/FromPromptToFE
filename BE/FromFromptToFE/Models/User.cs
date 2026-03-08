@@ -21,6 +21,8 @@ public partial class User
 
     public string? GitHubId { get; set; }
 
+    public string? GitHubAccessToken { get; set; }
+
     public string? AvatarUrl { get; set; }
 
     public string Provider { get; set; } = null!;
