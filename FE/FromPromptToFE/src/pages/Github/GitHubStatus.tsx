@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 interface PushState {
   repoUrl?: string;
@@ -12,8 +11,8 @@ interface PushState {
 const GitHubStatus: React.FC = () => {
   const location = useLocation();
   const state = (location.state ?? {}) as PushState;
-  const repoUrl = state.repoUrl ?? '';
-  const branch = state.branch ?? 'main';
+  const repoUrl = state.repoUrl ?? "";
+  const branch = state.branch ?? "main";
   const filesCommitted = state.filesCommitted ?? 0;
 
   const [copied, setCopied] = useState(false);
@@ -31,7 +30,9 @@ const GitHubStatus: React.FC = () => {
       <main className="flex flex-col max-w-[800px] mx-auto flex-1">
         <div className="flex flex-col items-center text-center pb-8 pt-4">
           <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-            <span className="material-symbols-outlined text-primary text-[48px]">check_circle</span>
+            <span className="material-symbols-outlined text-primary text-[48px]">
+              check_circle
+            </span>
           </div>
           <h1 className="text-slate-900 dark:text-white tracking-tight text-[32px] font-bold leading-tight px-4">
             Code pushed to GitHub successfully
@@ -39,18 +40,22 @@ const GitHubStatus: React.FC = () => {
           <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md">
             {filesCommitted > 0
               ? `${filesCommitted} file(s) committed to branch "${branch}".`
-              : 'Your latest changes are now live on your repository.'}
+              : "Your latest changes are now live on your repository."}
           </p>
         </div>
 
         <div className="p-4">
           <div className="flex flex-col gap-4 rounded-xl bg-white dark:bg-[#1c1f27] p-6 border border-slate-200 dark:border-slate-800 shadow-xl">
             <div className="flex flex-col gap-2">
-              <p className="text-slate-900 dark:text-white text-base font-bold leading-tight">Repository URL</p>
+              <p className="text-slate-900 dark:text-white text-base font-bold leading-tight">
+                Repository URL
+              </p>
               <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#282e39] p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                <span className="material-symbols-outlined text-slate-400 text-sm">link</span>
+                <span className="material-symbols-outlined text-slate-400 text-sm">
+                  link
+                </span>
                 <p className="text-slate-700 dark:text-[#9da6b9] text-sm font-mono truncate flex-1">
-                  {repoUrl || '—'}
+                  {repoUrl || "—"}
                 </p>
               </div>
             </div>
@@ -60,8 +65,12 @@ const GitHubStatus: React.FC = () => {
                 disabled={!repoUrl}
                 className="flex min-w-[120px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-slate-200 dark:bg-[#282e39] text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-[#343b48] transition-all gap-2 text-sm font-medium disabled:opacity-50"
               >
-                <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                <span className="truncate">{copied ? 'Copied!' : 'Copy URL'}</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  content_copy
+                </span>
+                <span className="truncate">
+                  {copied ? "Copied!" : "Copy URL"}
+                </span>
               </button>
             </div>
           </div>
@@ -75,7 +84,9 @@ const GitHubStatus: React.FC = () => {
               rel="noopener noreferrer"
               className="flex min-w-[200px] cursor-pointer items-center justify-center rounded-xl h-14 px-8 bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 gap-3 text-base font-bold tracking-tight"
             >
-              <span className="material-symbols-outlined text-[24px]">open_in_new</span>
+              <span className="material-symbols-outlined text-[24px]">
+                open_in_new
+              </span>
               <span className="truncate">View on GitHub</span>
             </a>
           ) : (
@@ -85,23 +96,33 @@ const GitHubStatus: React.FC = () => {
               rel="noopener noreferrer"
               className="flex min-w-[200px] cursor-pointer items-center justify-center rounded-xl h-14 px-8 bg-primary text-white hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 gap-3 text-base font-bold tracking-tight"
             >
-              <span className="material-symbols-outlined text-[24px]">open_in_new</span>
+              <span className="material-symbols-outlined text-[24px]">
+                open_in_new
+              </span>
               <span className="truncate">View on GitHub</span>
             </a>
           )}
         </div>
 
         <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-4">
-          <h2 className="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-tight px-4 pb-4 pt-5">Recent Activity</h2>
+          <h2 className="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-tight px-4 pb-4 pt-5">
+            Recent Activity
+          </h2>
           <div className="flex flex-col gap-3 px-4">
             <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-[#1c1f27] border border-slate-100 dark:border-slate-800/50">
               <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-[20px]">upload</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  upload
+                </span>
               </div>
               <div className="flex-1">
-                <p className="text-slate-900 dark:text-white text-sm font-bold">Successfully pushed to {branch}</p>
+                <p className="text-slate-900 dark:text-white text-sm font-bold">
+                  Successfully pushed to {branch}
+                </p>
                 <p className="text-slate-500 dark:text-slate-400 text-xs">
-                  {filesCommitted > 0 ? `Pushed ${filesCommitted} file(s) to GitHub` : 'Code pushed to GitHub'}
+                  {filesCommitted > 0
+                    ? `Pushed ${filesCommitted} file(s) to GitHub`
+                    : "Code pushed to GitHub"}
                 </p>
               </div>
               <div className="text-right">
@@ -112,8 +133,13 @@ const GitHubStatus: React.FC = () => {
         </div>
 
         <div className="mt-12 mb-10 flex justify-center px-4">
-          <Link to="/preview" className="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <Link
+            to="/preview"
+            className="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              arrow_back
+            </span>
             Back to Code Editor
           </Link>
         </div>

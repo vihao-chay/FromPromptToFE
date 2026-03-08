@@ -1,4 +1,4 @@
-import api from './api';
+import api from "./api";
 
 export interface PushToGitHubPayload {
   projectId: string;
@@ -16,7 +16,7 @@ export interface PushResultDto {
 
 const githubService = {
   push: (payload: PushToGitHubPayload) => {
-    return api.post<{ content: PushResultDto }>('/api/github/push', payload);
+    return api.post<{ content: PushResultDto }>("/api/github/push", payload);
   },
 };
 
