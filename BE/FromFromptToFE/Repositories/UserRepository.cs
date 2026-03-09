@@ -38,5 +38,10 @@ namespace FromFromptToFE.Repositories
                 .Select(om => om.Role)
                 .ToListAsync();
         }
+
+        public async Task<User?> GetByGitHubIdAsync(string githubId)
+        {
+            return await _dbSet.FirstOrDefaultAsync(u => u.GitHubId == githubId);
+        }
     }
 }

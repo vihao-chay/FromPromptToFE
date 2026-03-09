@@ -70,14 +70,11 @@ namespace FromFromptToFE.Services
             }
         }
 
-        public async Task SendOrganizationInviteEmailAsync(string email, string name, string organizationName, string role)
+        public async Task SendOrganizationInviteEmailAsync(string email, string name, string organizationName, string role, string joinLink, string rejectLink)
         {
             try
             {
-                var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
-                var loginLink = $"{frontendUrl}/login"; // Or specific accept invite link
-
-                var emailBody = GetOrganizationInviteEmailTemplate(name, organizationName, role, loginLink);
+                var emailBody = GetOrganizationInviteEmailTemplate(name, organizationName, role, joinLink, rejectLink);
 
                 await SendEmailAsync(
                     email,
@@ -90,8 +87,6 @@ namespace FromFromptToFE.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send organization invite email to {Email}", email);
-                // We might not want to throw an exception here so that the add member process doesn't fail entirely just because email failed
-                // But for now, we follow the pattern
                 throw new Exception($"Không thể gửi email mời tham gia tổ chức: {ex.Message}");
             }
         }
@@ -272,7 +267,7 @@ namespace FromFromptToFE.Services
 </html>";
         }
 
-        private string GetOrganizationInviteEmailTemplate(string name, string organizationName, string role, string loginLink)
+        private string GetOrganizationInviteEmailTemplate(string name, string organizationName, string role, string joinLink, string rejectLink)
         {
             return $@"
 <!DOCTYPE html>
@@ -303,17 +298,21 @@ namespace FromFromptToFE.Services
                             <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
                                 Bạn vừa được mời tham gia vào tổ chức <strong>{organizationName}</strong> trên hệ thống <strong>FromPromptToFE</strong> với vai trò là <strong>{role}</strong>.
                             </p>
-                            
-                            <p style=""margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
-                                Đăng nhập vào hệ thống ngay để xem chi tiết dự án và bắt đầu làm việc.
+                            <p style=""margin: 0 0 24px 0; color: #666666; font-size: 16px; line-height: 1.6;"">
+                                Nhấn <strong>Tham gia</strong> để chấp nhận hoặc <strong>Từ chối</strong> nếu bạn không muốn tham gia.
                             </p>
                             
-                            <!-- Button -->
-                            <table role=""presentation"" style=""margin: 30px 0; width: 100%;"">
+                            <!-- Buttons: Join & Reject -->
+                            <table role=""presentation"" style=""margin: 30px 0; width: 100%; border-collapse: collapse;"">
                                 <tr>
-                                    <td align=""center"">
-                                        <a href=""{loginLink}"" style=""display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(67, 233, 123, 0.3);"">
-                                            🚀 Đăng nhập và Bắt đầu
+                                    <td align=""center"" style=""padding: 0 8px;"">
+                                        <a href=""{joinLink}"" style=""display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 6px rgba(67, 233, 123, 0.3);"">
+                                            ✓ Tham gia
+                                        </a>
+                                    </td>
+                                    <td align=""center"" style=""padding: 0 8px;"">
+                                        <a href=""{rejectLink}"" style=""display: inline-block; padding: 16px 32px; background: #6c757d; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;"">
+                                            ✕ Từ chối
                                         </a>
                                     </td>
                                 </tr>

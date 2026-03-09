@@ -10,5 +10,6 @@ namespace FromFromptToFE.Repositories
         Task<User?> GetByResetTokenAsync(string token);
         Task<User?> GetByRefreshTokenAsync(string token);
         Task<List<string>> GetRolesAsync(Guid userId); // Thêm dòng này
+        Task<User?> GetByGitHubIdAsync(string githubId);
     }
 }

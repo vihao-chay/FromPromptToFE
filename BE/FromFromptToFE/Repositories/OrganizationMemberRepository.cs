@@ -41,8 +41,16 @@ namespace FromFromptToFE.Repositories
         {
             return await _dbSet.AsNoTracking()
                 .Include(om => om.Organization)
-                .Where(om => om.UserId == userId)
+                .Where(om => om.UserId == userId && (om.Status == null || om.Status == "Joined"))
                 .ToListAsync();
+        }
+
+        public async Task<OrganizationMember?> FindByInviteTokenAsync(string token)
+        {
+            return await _dbSet
+                .Include(om => om.Organization)
+                .Include(om => om.User)
+                .FirstOrDefaultAsync(om => om.InviteToken == token);
         }
     }
 }

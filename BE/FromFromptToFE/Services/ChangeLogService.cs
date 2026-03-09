@@ -28,6 +28,13 @@ namespace FromFromptToFE.Services
             return _mapper.Map<ChangeLogDto>(entity);
         }
 
+        public async Task<ChangeLogDto?> GetByIdAsync(Guid id)
+        {
+            var entity = await _repository.GetByIdAsync(id);
+            if (entity == null) return null;
+            return _mapper.Map<ChangeLogDto>(entity);
+        }
+
         public async Task<PagingResult<ChangeLogDto>> GetPagedAsync(ChangeLogFilterDto filter)
         {
             var (items, totalCount) = await _repository.GetPagedAsync(

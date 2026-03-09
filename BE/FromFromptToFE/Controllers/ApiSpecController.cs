@@ -8,7 +8,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class ApiSpecController : ControllerBase
     {
         private readonly IApiSpecService _service;

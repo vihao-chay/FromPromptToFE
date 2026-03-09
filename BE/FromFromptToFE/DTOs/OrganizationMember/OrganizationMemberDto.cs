@@ -12,6 +12,8 @@ namespace FromFromptToFE.DTOs
         public string UserEmail { get; set; } = null!;
         public string? UserAvatar { get; set; }
         public OrganizationRole Role { get; set; }
+        /// <summary>Invite = đang chờ; Joined = đã tham gia.</summary>
+        public string? Status { get; set; }
         public DateTime? CreatedAt { get; set; }
     }
 }

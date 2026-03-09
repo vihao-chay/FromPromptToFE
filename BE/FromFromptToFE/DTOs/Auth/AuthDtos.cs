@@ -88,6 +88,8 @@ namespace FromFromptToFE.DTOs.Auth
         public DateTime? CreatedAt { get; set; }
         /// <summary>e.g. "local" or "Google" - used to show/hide current password when changing password.</summary>
         public string? Provider { get; set; }
+        /// <summary>Non-null when the user has a GitHub account linked.</summary>
+        public string? GitHubId { get; set; }
     }
 
     public class UpdateProfileDto

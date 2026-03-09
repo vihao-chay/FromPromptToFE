@@ -10,6 +10,8 @@ namespace FromFromptToFE.Services.Interfaces
         Task<PagingResult<OrganizationMemberDto>> GetMembersByOrgIdAsync(Guid organizationId, MemberFilterDto filter);
         Task<OrganizationMemberDto> AddMemberAsync(AddMemberDto addDto);
         Task<OrganizationMemberDto> InviteMemberAsync(InviteMemberDto inviteDto);
+        Task<bool> AcceptInviteByTokenAsync(string token);
+        Task<bool> RejectInviteByTokenAsync(string token);
         Task<bool> UpdateMemberRoleAsync(Guid memberId, UpdateMemberRoleDto updateDto);
         Task<bool> RemoveMemberAsync(Guid memberId);
         Task<IEnumerable<UserOrganizationDto>> GetOrganizationsByUserIdAsync(Guid userId);

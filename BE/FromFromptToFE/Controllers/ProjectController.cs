@@ -10,7 +10,6 @@ namespace FromFromptToFE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class ProjectController : ControllerBase
     {
         private readonly IProjectService _service;
@@ -40,7 +39,6 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<PagingResult<ProjectDto>>.Ok(result, "OK");
         }
 
-        [Authorize]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
@@ -52,7 +50,6 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<ProjectDto>.Ok(project, "Lấy thông tin dự án thành công");
         }
 
-        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateProjectDto createDto)
         {
@@ -71,7 +68,6 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<ProjectDto>.Ok(project, "OK");
         }
 
-        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProjectDto updateDto)
         {
@@ -86,7 +82,6 @@ namespace FromFromptToFE.Controllers
             return ResponseEntity<bool>.Ok(true, "Cập nhật dự án thành công");
         }
 
-        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
