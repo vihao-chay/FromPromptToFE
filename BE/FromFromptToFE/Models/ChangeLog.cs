@@ -17,6 +17,10 @@ public partial class ChangeLog
 
     public string? Action { get; set; }
 
+    public string? OldValues { get; set; }
+
+    public string? NewValues { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public virtual User? Actor { get; set; }

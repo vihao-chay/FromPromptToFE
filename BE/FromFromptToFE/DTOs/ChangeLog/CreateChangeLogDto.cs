@@ -13,5 +13,7 @@ namespace FromFromptToFE.DTOs
         [Required]
         [StringLength(100)]
         public string Action { get; set; } = null!;
+        public string? OldValues { get; set; }
+        public string? NewValues { get; set; }
     }
 }

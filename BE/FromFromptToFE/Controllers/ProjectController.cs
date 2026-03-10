@@ -21,7 +21,6 @@ namespace FromFromptToFE.Controllers
             _memberService = memberService;
         }
 
-        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] ProjectFilterDto filter)
         {
