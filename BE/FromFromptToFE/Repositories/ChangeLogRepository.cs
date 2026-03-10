@@ -11,11 +11,13 @@ namespace FromFromptToFE.Repositories
         {
         }
 
-        public async Task<(IEnumerable<ChangeLog> Items, int TotalCount)> GetPagedAsync(string? search, Guid? organizationId, string? entityType, string? action, string? sortBy, string? sortOrder, int pageIndex, int pageSize)
+        public async Task<(IEnumerable<ChangeLog> Items, int TotalCount)> GetPagedAsync(string? search, Guid? organizationId, string? entityType, Guid? entityId, string? action, string? sortBy, string? sortOrder, int pageIndex, int pageSize)
         {
-            var query = _dbSet.AsQueryable();
+            var query = _dbSet.Include(c => c.Actor).AsQueryable();
             if (organizationId.HasValue)
                 query = query.Where(c => c.OrganizationId == organizationId.Value);
+            if (entityId.HasValue)
+                query = query.Where(c => c.EntityId == entityId.Value);
             if (!string.IsNullOrEmpty(entityType))
                 query = query.Where(c => c.EntityType != null && c.EntityType.Contains(entityType));
             if (!string.IsNullOrEmpty(action))
