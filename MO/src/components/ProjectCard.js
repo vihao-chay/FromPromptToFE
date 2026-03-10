@@ -16,7 +16,11 @@ export default function ProjectCard({
             ]}
         >
             <View style={styles.iconContainer}>
-                <Image source={{ uri: logo }} style={styles.icon} resizeMode="contain" />
+                {logo ? (
+                    <Image source={{ uri: logo }} style={styles.icon} resizeMode="contain" />
+                ) : (
+                    <Text style={styles.iconLetter}>{(title || "?").charAt(0).toUpperCase()}</Text>
+                )}
             </View>
 
             <View style={styles.content}>
@@ -63,6 +67,11 @@ const styles = StyleSheet.create({
     icon: {
         width: 32,
         height: 32,
+    },
+    iconLetter: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#60a5fa",
     },
     content: {
         flex: 1,
