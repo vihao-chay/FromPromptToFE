@@ -77,7 +77,7 @@ const NewProject: React.FC = () => {
       return;
     }
     if (!organizationId) {
-      setError('Vui lòng chọn tổ chức.');
+      setError('Please select an organization.');
       return;
     }
     setSubmitting(true);
@@ -138,7 +138,7 @@ const NewProject: React.FC = () => {
               </label>
               {myOrgs.length === 0 ? (
                 <p className="text-sm text-red-500 dark:text-red-400">
-                  Bạn chưa thuộc tổ chức nào. Vui lòng <Link to="/new-organization" className="text-primary underline">tạo tổ chức</Link> trước.
+                  You are not in any organization yet. Please <Link to="/new-organization" className="text-primary underline">create an organization</Link> first.
                 </p>
               ) : (
                 <select

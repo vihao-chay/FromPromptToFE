@@ -102,8 +102,8 @@ export default function GitHubCallback({ onLogin }: GitHubCallbackProps) {
               );
               setError(
                 msg
-                  ? `Xác thực thất bại: ${msg}`
-                  : "Phiên đăng nhập không xác thực được. Vui lòng thử lại.",
+                  ? `Verification failed: ${msg}`
+                  : "Session could not be verified. Please try again.",
               );
               setIsProcessing(false);
               return;

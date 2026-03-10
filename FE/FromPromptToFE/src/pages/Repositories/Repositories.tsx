@@ -48,7 +48,7 @@ const Repositories: React.FC = () => {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white font-display">Code records</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">Dữ liệu từ bảng code (Supabase) qua API BE.</p>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">Data from code table (Supabase) via BE API.</p>
         </div>
         <Link
           to="/github-integration"
@@ -63,13 +63,13 @@ const Repositories: React.FC = () => {
         <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-0">
           <input
             type="text"
-            placeholder="Tìm theo repo, project, mô tả..."
+            placeholder="Search by repo, project, description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 min-w-0 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />
           <button type="submit" className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600">
-            Tìm
+            Search
           </button>
         </form>
         <select
@@ -77,7 +77,7 @@ const Repositories: React.FC = () => {
           onChange={(e) => { setStatusFilter(e.target.value); setPageIndex(1); }}
           className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-3 py-2 text-sm"
         >
-          <option value="">Tất cả trạng thái</option>
+          <option value="">All statuses</option>
           <option value="Success">Success</option>
           <option value="Failure">Failure</option>
         </select>
@@ -92,9 +92,9 @@ const Repositories: React.FC = () => {
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-12 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500 mb-4">code</span>
-          <p className="text-slate-600 dark:text-slate-400">Chưa có bản ghi code. Dữ liệu lấy từ API /api/Code (bảng code).</p>
+          <p className="text-slate-600 dark:text-slate-400">No code records yet. Data is from API /api/Code (code table).</p>
           <button onClick={() => load()} className="mt-4 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90">
-            Tải lại
+            Refresh
           </button>
         </div>
       ) : (
@@ -107,8 +107,8 @@ const Repositories: React.FC = () => {
                     <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Project / Repo</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Branch</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Status</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Mô tả</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Ngày tạo</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Description</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Created</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Links</th>
                   </tr>
                 </thead>
@@ -168,7 +168,7 @@ const Repositories: React.FC = () => {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Hiển thị {from}–{to} / {totalRow}
+                Showing {from}–{to} of {totalRow}
               </p>
               <div className="flex gap-2">
                 <button
@@ -176,14 +176,14 @@ const Repositories: React.FC = () => {
                   disabled={pageIndex <= 1}
                   className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm disabled:opacity-50"
                 >
-                  Trước
+                  Previous
                 </button>
                 <button
                   onClick={() => setPageIndex((p) => Math.min(totalPages, p + 1))}
                   disabled={pageIndex >= totalPages}
                   className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm disabled:opacity-50"
                 >
-                  Sau
+                  Next
                 </button>
               </div>
             </div>

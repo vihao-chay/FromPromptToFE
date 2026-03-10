@@ -32,19 +32,25 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         try {
             const response = await loginService(email, password);
-            // Backend returns ResponseEntity with 'content' field
             const userData = response.content || response.data || response;
+            const token = userData.token || userData.Token;
+
+            // Lưu user + token TRƯỚC khi setUser để OnboardingCheck getMe() đọc được token ngay
+            await AsyncStorage.setItem("user", JSON.stringify(userData));
+            if (token) await AsyncStorage.setItem("token", token);
 
             setUser(userData);
-            await AsyncStorage.setItem("user", JSON.stringify(userData));
-
-            if (userData.token) {
-                await AsyncStorage.setItem("token", userData.token);
-            }
             showToast("Login successful!", "success");
         } catch (error) {
             console.error(error);
-            showToast(error.message || "Login failed. Please try again.", "error");
+            const msg = error?.message || "";
+            const isNetworkFailed = msg === "Network request failed" || msg.includes("Network request failed");
+            showToast(
+                isNetworkFailed
+                    ? "Cannot reach server. Same WiFi? Backend running (dotnet run)? Correct IP in config.js? Emulator: set USE_EMULATOR=true."
+                    : msg || "Login failed. Please try again.",
+                "error"
+            );
         } finally {
             setIsLoading(false);
         }
@@ -54,23 +60,25 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         try {
             const response = await googleLoginService(idToken);
-            // Backend returns ResponseEntity. 
-            // Handle both camelCase and PascalCase (common in .NET)
-            // ResponseEntity structure: { success: true, message: "...", content: { ... } }
             const userData = response.content || response.Content || response.data || response.Data || response;
-
-            console.log("[AuthContext] Setting User Data:", JSON.stringify(userData, null, 2));
-            setUser(userData);
-            await AsyncStorage.setItem("user", JSON.stringify(userData));
-
             const token = userData.token || userData.Token;
-            if (token) {
-                await AsyncStorage.setItem("token", token);
-            }
+
+            // Lưu user + token TRƯỚC khi setUser để OnboardingCheck getMe() đọc được token ngay
+            await AsyncStorage.setItem("user", JSON.stringify(userData));
+            if (token) await AsyncStorage.setItem("token", token);
+
+            setUser(userData);
             showToast("Google Login successful!", "success");
         } catch (error) {
             console.error(error);
-            showToast(error.message || "Google Login failed", "error");
+            const msg = error?.message || "";
+            const isNetworkFailed = msg === "Network request failed" || msg.includes("Network request failed");
+            showToast(
+                isNetworkFailed
+                    ? "Cannot reach server. Same WiFi? Backend running (dotnet run)? Correct IP in config.js? Emulator: set USE_EMULATOR=true."
+                    : msg || "Google Login failed",
+                "error"
+            );
         } finally {
             setIsLoading(false);
         }
