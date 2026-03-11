@@ -5,6 +5,7 @@ namespace FromFromptToFE.DTOs
     public class ChangeLogFilterDto
     {
         public string? Search { get; set; }
+        public Guid? EntityId { get; set; }
         public Guid? OrganizationId { get; set; }
         public string? EntityType { get; set; }
         public string? Action { get; set; }

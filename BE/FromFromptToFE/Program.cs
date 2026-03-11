@@ -49,11 +49,12 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<FromFromptToFE.Swagger.SortParameterOperationFilter>();
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Description = "Nhập JWT token của bạn vào ô bên dưới (Swagger sẽ tự dán thêm chữ Bearer).",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -78,7 +79,7 @@ builder.Services.AddDbContext<PostgresContext>(options =>
 // JWT Authentication (fallback key if appsettings.json has no Jwt:SecretKey)
 var jwtSecret = builder.Configuration["Jwt:SecretKey"];
 if (string.IsNullOrWhiteSpace(jwtSecret))
-    jwtSecret = "dev_secret_key_at_least_32_chars_long_for_local_only";
+    jwtSecret = "FromPromptToFE-Dev-Jwt-SecretKey-Min32CharsRequired!!";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "FromPromptToFE";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "FromPromptToFE";
 

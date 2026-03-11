@@ -25,7 +25,7 @@ namespace FromFromptToFE.Controllers
             {
                 var user = await _authService.RegisterAsync(dto);
                 var responseData = new { verifyToken = user.VerifyToken };
-                return ResponseEntity<object>.Ok(responseData, "Đăng ký thành công. Vui lòng xác thực email của bạn.");
+                return ResponseEntity<object>.Ok(responseData, "Registration successful. Please verify your email.");
             }
             catch (Exception ex)
             {
@@ -39,9 +39,9 @@ namespace FromFromptToFE.Controllers
             var result = await _authService.VerifyEmailAsync(dto.Token);
             if (!result)
             {
-                return ResponseEntity<object>.Fail("Mã xác thực không hợp lệ");
+                return ResponseEntity<object>.Fail("Invalid verification code");
             }
-            return ResponseEntity<object>.Ok(null, "Xác thực email thành công");
+            return ResponseEntity<object>.Ok(null, "Email verified successfully");
         }
 
         [HttpPost("login")]
@@ -52,9 +52,9 @@ namespace FromFromptToFE.Controllers
                 var response = await _authService.LoginAsync(dto);
                 if (response == null)
                 {
-                    return ResponseEntity<AuthResponseDto>.Fail("Email hoặc mật khẩu không chính xác", 401);
+                    return ResponseEntity<AuthResponseDto>.Fail("Incorrect email or password", 401);
                 }
-                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Login successful");
             }
             catch (Exception ex)
             {
@@ -68,7 +68,7 @@ namespace FromFromptToFE.Controllers
             try
             {
                 var response = await _authService.GoogleLoginAsync(dto.IdToken);
-                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập Google thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Google login successful");
             }
             catch (Exception ex)
             {
@@ -82,7 +82,7 @@ namespace FromFromptToFE.Controllers
             try
             {
                 var response = await _authService.GitHubLoginAsync(dto.Code);
-                return ResponseEntity<AuthResponseDto>.Ok(response, "Đăng nhập GitHub thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "GitHub login successful");
             }
             catch (Exception ex)
             {
@@ -96,7 +96,7 @@ namespace FromFromptToFE.Controllers
             try
             {
                 await _authService.ForgotPasswordAsync(dto);
-                return ResponseEntity<object>.Ok(null, "Nếu email tồn tại, một liên kết đặt lại mật khẩu đã được gửi.");
+                return ResponseEntity<object>.Ok(null, "If the email exists, a password reset link has been sent.");
             }
             catch (Exception ex)
             {
@@ -112,9 +112,9 @@ namespace FromFromptToFE.Controllers
                 var response = await _authService.ResetPasswordAsync(dto);
                 if (response == null)
                 {
-                    return ResponseEntity<object>.Fail("Mã xác thực không hợp lệ hoặc đã hết hạn");
+                    return ResponseEntity<object>.Fail("Invalid or expired verification code");
                 }
-                return ResponseEntity<AuthResponseDto>.Ok(response, "Đặt lại mật khẩu thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Password reset successful");
             }
             catch (Exception ex)
             {
@@ -202,7 +202,7 @@ namespace FromFromptToFE.Controllers
             try
             {
                 await _authService.ResendVerificationEmailAsync(dto);
-                return ResponseEntity<object>.Ok(null, "Đã gửi lại email xác thực thành công");
+                return ResponseEntity<object>.Ok(null, "Verification email resent successfully");
             }
             catch (Exception ex)
             {
@@ -218,9 +218,9 @@ namespace FromFromptToFE.Controllers
                 var response = await _authService.RefreshTokenAsync(dto);
                 if (response == null)
                 {
-                    return ResponseEntity<AuthResponseDto>.Fail("Refresh token không hợp lệ hoặc đã hết hạn", 401);
+                    return ResponseEntity<AuthResponseDto>.Fail("Refresh token is invalid or expired", 401);
                 }
-                return ResponseEntity<AuthResponseDto>.Ok(response, "Làm mới token thành công");
+                return ResponseEntity<AuthResponseDto>.Ok(response, "Token refreshed successfully");
             }
             catch (Exception ex)
             {

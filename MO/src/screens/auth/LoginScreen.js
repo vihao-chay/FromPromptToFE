@@ -30,7 +30,7 @@ export default function LoginScreen({ navigation }) {
     const [password, setPassword] = useState("");
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-    // Redirect URI dùng Expo proxy để hỗ trợ Expo Go
+    // Redirect URI uses Expo proxy for Expo Go
     const redirectUri = makeRedirectUri({
         scheme: "https",
         path: "auth.expo.io/@vinyalo/mo",

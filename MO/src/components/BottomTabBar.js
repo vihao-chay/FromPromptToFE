@@ -7,7 +7,7 @@ export default function BottomTabBar({ active, onChange }) {
         { name: "Dashboard", icon: "grid-view" },
         { name: "Projects", icon: "folder" },
         { name: "Integrations", icon: "extension" },
-        { name: "Settings", icon: "settings" },
+        { name: "Profile", icon: "person" },
     ];
 
     return (

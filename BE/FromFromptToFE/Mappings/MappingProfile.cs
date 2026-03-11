@@ -100,7 +100,9 @@ namespace FromFromptToFE.Mappings
                     }
                 })
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-            CreateMap<ChangeLog, ChangeLogDto>();
+            CreateMap<ChangeLog, ChangeLogDto>()
+                .ForMember(dest => dest.ActorName, opt => opt.MapFrom(src => src.Actor != null ? src.Actor.Name : null))
+                .ForMember(dest => dest.ActorEmail, opt => opt.MapFrom(src => src.Actor != null ? src.Actor.Email : null));
             CreateMap<CreateChangeLogDto, ChangeLog>();
 
             CreateMap<Code, CodeDto>();

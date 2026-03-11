@@ -38,7 +38,7 @@ namespace FromFromptToFE.Services
         public async Task<PagingResult<ChangeLogDto>> GetPagedAsync(ChangeLogFilterDto filter)
         {
             var (items, totalCount) = await _repository.GetPagedAsync(
-                filter.Search, filter.OrganizationId, filter.EntityType, filter.Action,
+                filter.Search, filter.OrganizationId, filter.EntityType, filter.EntityId, filter.Action,
                 filter.SortBy, filter.SortOrder, filter.PageIndex, filter.PageSize);
             return new PagingResult<ChangeLogDto>
             {
