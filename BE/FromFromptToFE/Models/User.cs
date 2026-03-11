@@ -41,6 +41,9 @@ public partial class User
 
     public bool IsAdmin { get; set; }
 
+    /// <summary>true = tài khoản bình thường, false = bị ban (không được đăng nhập)</summary>
+    public bool IsActive { get; set; }
+
     public virtual ICollection<ChangeLog> ChangeLogs { get; set; } = new List<ChangeLog>();
 
     public virtual ICollection<OrganizationMember> OrganizationMembers { get; set; } = new List<OrganizationMember>();

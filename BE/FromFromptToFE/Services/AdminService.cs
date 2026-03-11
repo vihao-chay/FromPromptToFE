@@ -105,7 +105,7 @@ namespace FromFromptToFE.Services
                     Provider = u.Provider,
                     IsVerified = u.IsVerified ?? false,
                     IsAdmin = u.IsAdmin,
-                    IsActive = u.IsVerified ?? false, // using IsVerified as active status
+                    IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt,
                     UpdatedAt = u.UpdatedAt
                 })
@@ -125,8 +125,8 @@ namespace FromFromptToFE.Services
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
 
-            // Toggle IsVerified as the active/inactive flag
-            user.IsVerified = !(user.IsVerified ?? false);
+            // Toggle IsActive: false = banned (không được đăng nhập), true = bình thường
+            user.IsActive = !user.IsActive;
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -188,7 +188,8 @@ namespace FromFromptToFE.Services
                 Name = dto.Name,
                 PasswordHash = FromFromptToFE.Helpers.PasswordHelper.HashPassword(dto.Password),
                 IsAdmin = dto.IsAdmin,
-                IsVerified = true, // Default to Active
+                IsVerified = true, // Email mặc định đã verified khi admin tạo
+                IsActive = true,   // Tài khoản active khi mới tạo
                 Provider = "local",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -206,7 +207,7 @@ namespace FromFromptToFE.Services
                 Provider = newUser.Provider,
                 IsVerified = newUser.IsVerified ?? false,
                 IsAdmin = newUser.IsAdmin,
-                IsActive = newUser.IsVerified ?? false,
+                IsActive = newUser.IsActive,
                 CreatedAt = newUser.CreatedAt,
                 UpdatedAt = newUser.UpdatedAt
             };
@@ -227,7 +228,8 @@ namespace FromFromptToFE.Services
             user.Name = dto.Name;
             user.Email = dto.Email;
             user.IsAdmin = dto.IsAdmin;
-            user.IsVerified = dto.Status.Equals("Active", StringComparison.OrdinalIgnoreCase);
+            // Status trong EditModal chỉ phản ánh IsActive (ban/unban), không ảnh hưởng IsVerified
+            user.IsActive = dto.Status.Equals("Active", StringComparison.OrdinalIgnoreCase);
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -241,7 +243,7 @@ namespace FromFromptToFE.Services
                 Provider = user.Provider,
                 IsVerified = user.IsVerified ?? false,
                 IsAdmin = user.IsAdmin,
-                IsActive = user.IsVerified ?? false,
+                IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
