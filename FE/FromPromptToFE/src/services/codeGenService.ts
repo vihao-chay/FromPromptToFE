@@ -58,10 +58,10 @@ export async function generateCode(request: GenerateCodeRequest): Promise<Genera
         designSystem: request.designSystem,
       });
       return {
-      steps: (out.steps && out.steps.length >= 4) ? out.steps : [],
-      tsx: out.tsx,
-      html: out.html,
-    };
+        steps: (out.steps && out.steps.length >= 4) ? out.steps : [],
+        tsx: out.tsx,
+        html: out.html,
+      };
     }
     throw err;
   }

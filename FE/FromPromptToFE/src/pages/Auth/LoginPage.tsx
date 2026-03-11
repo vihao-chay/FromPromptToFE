@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 
-import authService from "@/src/services/authService";
+import authService, { getAuthErrorMessage } from "@/src/services/authService";
 import { Google } from "@/src/assets/icons/Google";
 import { GitHub } from "@/src/assets/icons/Github";
 import { GITHUB_OAUTH_URL } from "@/src/constants/githubConfig";
@@ -27,12 +27,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           tokenResponse.access_token,
         );
         console.log("Google Login Success", response.data);
-        const content = response.data?.content ?? response.data;
-        const token = content?.token ?? content?.Token ?? response.data?.token;
+        const raw = response.data as Record<string, unknown> | undefined;
+        const content = (raw?.content ?? raw?.Content ?? raw) as Record<string, unknown> | undefined;
+        const token = (content?.token ?? content?.Token ?? raw?.token ?? raw?.Token) as string | undefined;
 
         if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
           localStorage.setItem("token", token);
-          localStorage.setItem("user", JSON.stringify(content ?? response.data.content));
+          localStorage.setItem("user", JSON.stringify(content ?? {}));
           onLogin?.();
           navigate("/dashboard");
         } else {
@@ -40,10 +41,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         }
       } catch (err: unknown) {
         console.error("Google Login Backend Error", err);
-        const errorMessage =
-          (err as { response?: { data?: { message?: string } } })?.response
-            ?.data?.message || "Google Login failed.";
-        setError(errorMessage);
+        setError(getAuthErrorMessage(err));
       }
     },
     onError: () => {
@@ -54,7 +52,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleGitHubLogin = () => {
     if (!GITHUB_OAUTH_URL) {
-      setError("GitHub OAuth chưa cấu hình. Thêm VITE_GITHUB_CLIENT_ID vào file .env (tạo OAuth App tại https://github.com/settings/developers).");
+      setError("GitHub OAuth is not configured. Add VITE_GITHUB_CLIENT_ID to .env (create OAuth App at https://github.com/settings/developers).");
       return;
     }
     window.location.href = GITHUB_OAUTH_URL;
@@ -68,12 +66,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     try {
       const response = await authService.login(email, password);
       console.log("Data user:", response.data);
-      const content = response.data?.content ?? response.data;
-      const token = content?.token ?? content?.Token ?? response.data?.token;
+      const raw = response.data as Record<string, unknown> | undefined;
+      const content = (raw?.content ?? raw?.Content ?? raw) as Record<string, unknown> | undefined;
+      const token = (content?.token ?? content?.Token ?? raw?.token ?? raw?.Token) as string | undefined;
 
       if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
         localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(content ?? response.data.content));
+        localStorage.setItem("user", JSON.stringify(content ?? {}));
         onLogin?.();
         navigate("/dashboard");
       } else {
@@ -82,16 +81,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       }
     } catch (err: unknown) {
       console.error("Login error", err);
-      // Handle error response safely
-      const error = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Login failed. Please check your credentials.";
-      setError(errorMessage);
+      setError(getAuthErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

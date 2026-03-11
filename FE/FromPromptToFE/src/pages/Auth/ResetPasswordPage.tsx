@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import authService from '../../services/authService';
+import authService, { getAuthErrorMessage } from "../../services/authService";
 
 export default function ResetPasswordPage() {
     const navigate = useNavigate();
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
 
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.message || err.message || 'Password reset failed.');
+            setError(getAuthErrorMessage(err));
         } finally {
             setIsLoading(false);
         }

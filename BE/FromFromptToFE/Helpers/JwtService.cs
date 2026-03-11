@@ -23,7 +23,8 @@ public class JwtService : IJwtAuthService
 
     public JwtService(IConfiguration configuration, PostgresContext context)
     {
-        _key = configuration["Jwt:SecretKey"]; 
+        var secret = configuration["Jwt:SecretKey"];
+        _key = string.IsNullOrWhiteSpace(secret) ? "FromPromptToFE-Dev-Jwt-SecretKey-Min32CharsRequired!!" : secret;
         _issuer = configuration["Jwt:Issuer"] ?? "FromPromptToFE";
         _audience = configuration["Jwt:Audience"] ?? "FromPromptToFE";
         _context = context;

@@ -12,7 +12,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
-import { MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
@@ -28,9 +28,10 @@ export default function LoginScreen({ navigation }) {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-    // Redirect URI dùng Expo proxy để hỗ trợ Expo Go
+    // Redirect URI uses Expo proxy for Expo Go
     const redirectUri = makeRedirectUri({
         scheme: "https",
         path: "auth.expo.io/@vinyalo/mo",
@@ -91,14 +92,27 @@ export default function LoginScreen({ navigation }) {
                 />
 
                 <Text style={styles.label}>Password</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="#94a3b8"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
+                <View style={styles.passwordWrap}>
+                    <TextInput
+                        style={styles.inputWithIcon}
+                        placeholder="••••••••"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showPassword}
+                        value={password}
+                        onChangeText={setPassword}
+                    />
+                    <TouchableOpacity
+                        style={styles.eyeButton}
+                        onPress={() => setShowPassword((v) => !v)}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcons
+                            name={showPassword ? "visibility-off" : "visibility"}
+                            size={22}
+                            color="#94a3b8"
+                        />
+                    </TouchableOpacity>
+                </View>
 
                 <Button
                     title="Forgot Password?"
@@ -133,8 +147,8 @@ export default function LoginScreen({ navigation }) {
                     <ActivityIndicator color="white" />
                 ) : (
                     <>
-                        <MaterialIcons
-                            name="g-translate"
+                        <AntDesign
+                            name="google"
                             size={24}
                             color="white"
                             style={{ marginRight: 10 }}
@@ -194,6 +208,24 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 14,
         color: "white",
+    },
+    passwordWrap: {
+        position: "relative",
+    },
+    inputWithIcon: {
+        backgroundColor: "#020617",
+        borderRadius: 12,
+        padding: 14,
+        paddingRight: 48,
+        color: "white",
+    },
+    eyeButton: {
+        position: "absolute",
+        right: 12,
+        top: 0,
+        bottom: 0,
+        justifyContent: "center",
+        padding: 4,
     },
     signInButton: {
         marginTop: 20,

@@ -1,5 +1,24 @@
 import api from "./api";
 
+/** Get error message from backend (message/Message). Fallback by status if missing. */
+const STATUS_MESSAGES: Record<number, string> = {
+  400: "Invalid data. Please check and try again.",
+  401: "Incorrect email or password.",
+  403: "You do not have permission to perform this action.",
+  404: "Not found.",
+  500: "Server error. Please try again later.",
+};
+
+export function getAuthErrorMessage(err: unknown): string {
+  const e = err as { response?: { data?: { message?: string; Message?: string }; status?: number }; message?: string };
+  const data = e?.response?.data;
+  const msg = data?.message ?? data?.Message;
+  if (msg && typeof msg === "string") return msg;
+  const status = e?.response?.status;
+  if (status && STATUS_MESSAGES[status]) return STATUS_MESSAGES[status];
+  return e?.message ?? "Something went wrong. Please try again.";
+}
+
 export interface UserDto {
   id: string;
   email: string;
@@ -80,7 +99,7 @@ export async function getMyOrganizations(userId: string) {
   const raw = Array.isArray(content)
     ? content
     : ((content as unknown as { TotalItems?: UserOrganizationDto[] })
-        ?.TotalItems ?? []);
+      ?.TotalItems ?? []);
   return (Array.isArray(raw) ? raw : []).map((o: Record<string, unknown>) => ({
     organizationId: String(o.organizationId ?? o.OrganizationId ?? ""),
     organizationName: String(o.organizationName ?? o.OrganizationName ?? ""),

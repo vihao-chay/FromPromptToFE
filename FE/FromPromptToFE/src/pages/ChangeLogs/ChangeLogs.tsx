@@ -23,18 +23,18 @@ const ChangeLogs: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    changeLogService.getAll({ pageIndex: 1, pageSize: 50 })
+    changeLogService.getAll({ pageIndex: 1, pageSize: 50, sortBy: 'CreatedAt', sortOrder: 'desc' })
       .then((res) => {
         const content = res.data?.content;
         const list = content?.TotalItems ?? content?.totalItems ?? (Array.isArray(content) ? content : []);
-        const items = (Array.isArray(list) ? list : []) as (ChangeLogDto & { Id?: string; Action?: string; EntityType?: string; CreatedAt?: string })[];
+        const items = (Array.isArray(list) ? list : []) as ChangeLogDto[];
         setLogs(
           items.map((l, i) => ({
             id: String(l.id ?? l.Id ?? i),
-            title: `${l.action ?? l.Action ?? 'Update'} ${l.entityType ?? l.EntityType ?? 'Item'}`,
-            description: l.entityId ? `Entity ID: ${l.entityId}` : undefined,
+            title: `${l.action ?? 'Update'} ${l.entityType ?? 'Item'}`,
+            description: [l.entityId ? `Entity: ${l.entityId}` : null, l.actorName ?? l.actorEmail ? `By ${l.actorName || l.actorEmail || '—'}` : null].filter(Boolean).join(' · ') || undefined,
             date: l.createdAt ?? l.CreatedAt ?? new Date().toISOString(),
-            type: actionToType(l.action ?? l.Action ?? ''),
+            type: actionToType(l.action ?? ''),
           }))
         );
       })

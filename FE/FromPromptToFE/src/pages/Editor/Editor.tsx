@@ -5,6 +5,7 @@ import { generateCode } from "../../services/codeGenService";
 import organizationService from "../../services/organizationService";
 import projectService, { getContent } from "../../services/projectService";
 import projectOutputService from "../../services/projectOutputService";
+import changeLogService from "../../services/changeLogService";
 
 const PROMPT_HISTORY_KEY = "editor_prompt_history";
 const PROMPT_HISTORY_MAX = 15;
@@ -535,6 +536,7 @@ const Editor: React.FC = () => {
           setOutputSaveError(null);
           try {
             await projectOutputService.saveOutput(projectId, savePayload);
+            changeLogService.create({ entityType: "ProjectOutput", entityId: projectId, action: "Generate" }).catch(() => {});
             if (html)
               try {
                 localStorage.setItem("project_preview_" + projectId, html);
@@ -1170,7 +1172,7 @@ const Editor: React.FC = () => {
                   onClick={handleGenerate}
                   disabled={isSaving || !prompt.trim()}
                   className="flex-shrink-0 p-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Gửi"
+                  title="Send"
                 >
                   <span className="material-symbols-outlined text-[24px]">
                     send
@@ -1244,7 +1246,7 @@ const Editor: React.FC = () => {
                           className={`text-xs ${outputSaved ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
                         >
                           {outputSaved
-                            ? "Đã lưu vào project output"
+                            ? "Saved to project output"
                             : outputSaveError}
                         </span>
                       )}
@@ -1272,9 +1274,9 @@ const Editor: React.FC = () => {
                   <pre className="flex-1 min-h-0 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
                     {activeCodeTab === "tsx"
                       ? generatedTsx ||
-                        "// Nhập prompt và bấm Gửi để tạo code TSX + HTML."
+                        "// Enter a prompt and click Send to generate TSX + HTML code."
                       : generatedHtml ||
-                        "<!-- Nhập prompt và bấm Gửi để tạo code. -->"}
+                        "<!-- Enter a prompt and click Send to generate code. -->"}
                   </pre>
                 </div>
               )}

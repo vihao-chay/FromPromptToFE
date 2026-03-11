@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import authService, { getAuthErrorMessage } from "../../services/authService";
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
             setSuccess(true);
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.message || err.message || 'Failed to send reset link.');
+            setError(getAuthErrorMessage(err));
         } finally {
             setIsLoading(false);
         }
