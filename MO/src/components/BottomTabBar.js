@@ -5,7 +5,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 export default function BottomTabBar({ active, onChange }) {
     const tabs = [
         { name: "Dashboard", icon: "grid-view" },
-        { name: "Projects", icon: "folder" },
+        { name: "Change Logs", icon: "history" },
         { name: "Integrations", icon: "extension" },
         { name: "Profile", icon: "person" },
     ];

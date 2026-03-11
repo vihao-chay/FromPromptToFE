@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import projectService, { getContent } from '../../services/projectService';
 import organizationService from '../../services/organizationService';
 import authService, { getMyOrganizations, UserOrganizationDto } from '../../services/authService';
+import changeLogService from '../../services/changeLogService';
 
 const ONBOARDING_STORAGE_KEY = 'onboardingComplete';
 const NEW_PROJECT_ORG_KEY = 'newProjectOrganizationId';
@@ -89,6 +90,9 @@ const NewProject: React.FC = () => {
       });
       const created = getContent(createRes.data) as { id?: string; Id?: string } | undefined;
       const projectId = created?.id ?? (created as { Id?: string })?.Id;
+      if (projectId && organizationId) {
+        changeLogService.create({ organizationId, entityType: 'Project', entityId: projectId, action: 'Create' }).catch(() => {});
+      }
       sessionStorage.removeItem(NEW_PROJECT_ORG_KEY);
       sessionStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
       if (fromOnboarding) {

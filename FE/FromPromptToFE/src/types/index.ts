@@ -15,6 +15,7 @@ export interface Project {
   createdAt: string;
   imageUrl: string;
   generatedHtml?: string;
+  organizationId?: string;
 }
 
 export interface Activity {
