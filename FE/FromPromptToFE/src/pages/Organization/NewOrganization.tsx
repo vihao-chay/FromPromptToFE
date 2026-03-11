@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import organizationService from '../../services/organizationService';
+import changeLogService from '../../services/changeLogService';
 import { getContent } from '../../services/projectService';
 
 const NewOrganization: React.FC = () => {
@@ -24,6 +25,9 @@ const NewOrganization: React.FC = () => {
       const res = await organizationService.create(name.trim(), plan);
       const created = getContent(res.data) as { id?: string; Id?: string } | undefined;
       const orgId = created?.id ?? (created as { Id?: string })?.Id;
+      if (orgId) {
+        changeLogService.create({ organizationId: orgId, entityType: 'Organization', entityId: orgId, action: 'Create' }).catch(() => {});
+      }
       if (fromOnboarding && orgId) {
         navigate('/new-project', { replace: true, state: { organizationId: orgId, fromOnboarding: true } });
       } else {

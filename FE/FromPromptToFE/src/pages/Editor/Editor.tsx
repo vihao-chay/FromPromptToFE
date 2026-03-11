@@ -5,6 +5,7 @@ import { generateCode } from "../../services/codeGenService";
 import organizationService from "../../services/organizationService";
 import projectService, { getContent } from "../../services/projectService";
 import projectOutputService from "../../services/projectOutputService";
+import changeLogService from "../../services/changeLogService";
 
 const PROMPT_HISTORY_KEY = "editor_prompt_history";
 const PROMPT_HISTORY_MAX = 15;
@@ -535,6 +536,7 @@ const Editor: React.FC = () => {
           setOutputSaveError(null);
           try {
             await projectOutputService.saveOutput(projectId, savePayload);
+            changeLogService.create({ entityType: "ProjectOutput", entityId: projectId, action: "Generate" }).catch(() => {});
             if (html)
               try {
                 localStorage.setItem("project_preview_" + projectId, html);

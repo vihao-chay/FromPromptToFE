@@ -28,6 +28,9 @@ const STATUS_MESSAGES = {
     403: "You do not have permission to perform this action.",
     404: "Not found.",
     500: "Server error. Please try again later.",
+    502: "Backend unreachable. Is the server running (dotnet run)?",
+    503: "Tunnel/backend unavailable. Run: 1) dotnet run (in BE) 2) npm run tunnel (in MO). Or in config.js set API_URL_OVERRIDE = null to use IP (same WiFi).",
+    504: "Request timeout. Check backend and network.",
 };
 
 async function getErrorMessage(response, context = "Request") {
@@ -44,22 +47,41 @@ async function getErrorMessage(response, context = "Request") {
     }
 }
 
-/** Call API; on "Network request failed" retry with emulator URL (10.0.2.2) when using emulator. */
+/** Build headers for a given base URL (for fallback retry). */
+function getApiHeadersForBase(baseUrl, customHeaders = {}) {
+    const isLocaltunnel = baseUrl && baseUrl.includes("loca.lt");
+    return {
+        "Content-Type": "application/json",
+        ...(isLocaltunnel && { "Bypass-Tunnel-Reminder": "1" }),
+        ...customHeaders,
+    };
+}
+
+/** Call API; on 503 from tunnel retry with REAL_DEVICE (IP); on network error retry with emulator. */
 async function fetchApi(path, options) {
     const base = getAPIUrl();
     const headers = getApiHeaders(options.headers || {});
     const opts = { ...options, headers: { ...headers, ...(options.headers || {}) } };
+    const pathStr = path.startsWith("/") ? path : `/${path}`;
+    const buildUrl = (b) => `${(b || "").replace(/\/$/, "")}${pathStr}`;
     try {
-        const url = `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
-        return await fetchWithTimeout(url, opts);
+        let response = await fetchWithTimeout(buildUrl(base), opts);
+        if (!response.ok && response.status === 503 && base.includes("loca.lt")) {
+            const fallbackBase = API_CONFIG.REAL_DEVICE;
+            if (fallbackBase && fallbackBase !== base) {
+                console.log("[API] 503 from tunnel, retrying with IP:", fallbackBase);
+                const fallbackOpts = { ...options, headers: { ...getApiHeadersForBase(fallbackBase, options.headers), ...(options.headers || {}) } };
+                response = await fetchWithTimeout(buildUrl(fallbackBase), fallbackOpts);
+            }
+        }
+        return response;
     } catch (err) {
         const isNetworkFail = err?.message === "Network request failed" || String(err?.message || "").includes("Network request failed");
         const fallback = API_CONFIG.EMULATOR;
         if (isNetworkFail && base !== fallback && fallback) {
             try {
-                const url = `${fallback.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
-                console.log("[API] Retry with emulator URL:", url);
-                return await fetchWithTimeout(url, options);
+                console.log("[API] Retry with emulator URL:", fallback);
+                return await fetchWithTimeout(buildUrl(fallback), opts);
             } catch (e2) {
                 throw err;
             }
@@ -128,11 +150,12 @@ export async function getMyOrganizations(userId) {
 
 export const login = async (email, password) => {
     try {
-        console.log("[LOGIN] Connecting to:", getAPIUrl(), "/auth/login");
+        const baseUrl = getAPIUrl();
+        console.log("[LOGIN] Connecting to:", baseUrl, "/auth/login");
 
         const response = await fetchApi("/auth/login", {
             method: "POST",
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ Email: email, Password: password }),
         });
 
         if (!response.ok) {
@@ -142,7 +165,8 @@ export const login = async (email, password) => {
 
         return response.json();
     } catch (error) {
-        console.error("[LOGIN ERROR]", error.message);
+        const msg = error?.message || "Login failed";
+        console.error("[LOGIN ERROR]", msg);
         throw error;
     }
 };

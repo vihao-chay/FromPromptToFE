@@ -19,6 +19,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getMe, getMyOrganizations } from "../../services/authService";
 import projectService from "../../services/projectService";
 import projectOutputService from "../../services/projectOutputService";
+import changeLogService from "../../services/changeLogService";
 
 function normalizeUser(c) {
     if (!c) return null;
@@ -56,6 +57,11 @@ export default function DashboardScreen({ navigation }) {
     const [selectedOrgId, setSelectedOrgId] = useState(null);
     /** Pending org to switch to – show confirm modal. */
     const [confirmOrg, setConfirmOrg] = useState(null);
+    /** Change logs (tab "Change Logs") – same API as FE. */
+    const [changeLogs, setChangeLogs] = useState([]);
+    const [changeLogsLoading, setChangeLogsLoading] = useState(false);
+    /** Filter change logs by project (within selected org). null = all projects in org. */
+    const [selectedProjectIdForLogs, setSelectedProjectIdForLogs] = useState(null);
 
     const loadData = async () => {
         try {
@@ -127,15 +133,58 @@ export default function DashboardScreen({ navigation }) {
         loadData();
     }, []);
 
+    useEffect(() => {
+        // When selected org changes, clear project filter so "Tất cả dự án" is used for the new org
+        setSelectedProjectIdForLogs(null);
+        if (activeTab === "Change Logs" && selectedOrgId) {
+            loadChangeLogs({ projectId: null });
+        }
+    }, [selectedOrgId]);
+
     const onRefresh = () => {
         setRefreshing(true);
         loadData();
+    };
+
+    const loadChangeLogs = async (overrides = {}) => {
+        const projectId = overrides.projectId !== undefined ? overrides.projectId : selectedProjectIdForLogs;
+        setChangeLogsLoading(true);
+        try {
+            const params = { pageIndex: 1, pageSize: 50, sortBy: "CreatedAt", sortOrder: "desc" };
+            // Do not send organizationId: many DB rows have organization_id NULL, so filter client-side
+            if (projectId) {
+                params.entityType = "Project";
+                params.entityId = projectId;
+            }
+            const list = await changeLogService.getAll(params);
+            const raw = Array.isArray(list) ? list : [];
+            const orgId = overrides.organizationId !== undefined ? overrides.organizationId : selectedOrgId;
+            const projectIdsInOrg = orgId ? (projects.filter((p) => (p.organizationId || "") === orgId).map((p) => p.id)) : [];
+            const filtered = orgId
+                ? raw.filter((log) => {
+                    const logOrgId = log.organizationId ?? log.OrganizationId ?? null;
+                    const logEntityType = (log.entityType ?? log.EntityType ?? "").toString();
+                    const logEntityId = log.entityId ?? log.EntityId ?? "";
+                    if (logOrgId && logOrgId !== orgId) return false;
+                    if (logEntityType === "Project" && logEntityId && !projectIdsInOrg.includes(logEntityId)) return false;
+                    return true;
+                })
+                : raw;
+            setChangeLogs(filtered);
+        } catch (_) {
+            setChangeLogs([]);
+        } finally {
+            setChangeLogsLoading(false);
+        }
     };
 
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         if (tab === "Profile") {
             navigation.navigate("Profile");
+        }
+        if (tab === "Change Logs") {
+            loadChangeLogs();
         }
     };
 
@@ -175,9 +224,108 @@ export default function DashboardScreen({ navigation }) {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
+                    <RefreshControl
+                        refreshing={activeTab === "Change Logs" ? changeLogsLoading : refreshing}
+                        onRefresh={activeTab === "Change Logs" ? loadChangeLogs : onRefresh}
+                        tintColor="#2563eb"
+                    />
                 }
             >
+                {activeTab === "Change Logs" ? (
+                    <>
+                        <View style={styles.sectionTitleRow}>
+                            <MaterialIcons name="history" size={22} color="#2563eb" />
+                            <Text style={styles.sectionTitle}>Change Logs</Text>
+                        </View>
+                        {!selectedOrgId ? (
+                            <View style={styles.changeLogEmpty}>
+                                <MaterialIcons name="groups" size={40} color="#64748b" />
+                                <Text style={styles.changeLogEmptyText}>Select an organization on the Dashboard tab to view change logs by organization.</Text>
+                            </View>
+                        ) : (
+                            <>
+                        <View style={styles.changeLogFilterRow}>
+                            <Text style={styles.changeLogFilterLabel}>Organization: {selectedOrgName}</Text>
+                        </View>
+                        <View style={styles.changeLogProjectFilter}>
+                            <TouchableOpacity
+                                style={[styles.changeLogProjectChip, !selectedProjectIdForLogs && styles.changeLogProjectChipActive]}
+                                onPress={() => {
+                                    setSelectedProjectIdForLogs(null);
+                                    loadChangeLogs({ projectId: null });
+                                }}
+                            >
+                                <Text style={[styles.changeLogProjectChipText, !selectedProjectIdForLogs && styles.changeLogProjectChipTextActive]}>All projects</Text>
+                            </TouchableOpacity>
+                            {projectsInSelectedOrg.map((proj) => {
+                                const isSelected = selectedProjectIdForLogs === proj.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={proj.id}
+                                        style={[styles.changeLogProjectChip, isSelected && styles.changeLogProjectChipActive]}
+                                        onPress={() => {
+                                            setSelectedProjectIdForLogs(proj.id);
+                                            loadChangeLogs({ projectId: proj.id });
+                                        }}
+                                    >
+                                        <Text style={[styles.changeLogProjectChipText, isSelected && styles.changeLogProjectChipTextActive]} numberOfLines={1}>{proj.name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        {changeLogsLoading && changeLogs.length === 0 ? (
+                            <View style={styles.loadingWrap}>
+                                <ActivityIndicator size="large" color="#2563eb" />
+                                <Text style={styles.loadingText}>Loading change logs...</Text>
+                            </View>
+                        ) : changeLogs.length === 0 ? (
+                            <View style={styles.changeLogEmpty}>
+                                <MaterialIcons name="history" size={40} color="#64748b" />
+                                <Text style={styles.changeLogEmptyText}>No change logs yet.</Text>
+                                <Text style={styles.changeLogEmptySub}>Deploy or edit projects to see activity here.</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.changeLogList}>
+                                {changeLogs.map((log, i) => {
+                                    const action = (log.action ?? log.Action ?? "Update").toString();
+                                    const entityType = (log.entityType ?? log.EntityType ?? "Item").toString();
+                                    const title = `${action} ${entityType}`;
+                                    const entityId = log.entityId ?? log.EntityId;
+                                    const actor = log.actorName ?? log.actorEmail ?? log.ActorName ?? log.ActorEmail ?? "—";
+                                    const descParts = [];
+                                    if (entityId) descParts.push(`Entity: ${entityId}`);
+                                    descParts.push(`By ${actor}`);
+                                    const description = descParts.join(" · ");
+                                    const rawDate = log.createdAt ?? log.CreatedAt ?? "";
+                                    const dateStr = rawDate
+                                        ? new Date(rawDate).toLocaleDateString(undefined, { dateStyle: "medium" }) +
+                                          " " +
+                                          new Date(rawDate).toLocaleTimeString(undefined, { timeStyle: "short" })
+                                        : "—";
+                                    const a = action.toLowerCase();
+                                    const type = a === "create" ? "create" : a === "update" || a === "edit" ? "edit" : a === "deploy" ? "deploy" : "api";
+                                    const typeIcon = { create: "add-circle", edit: "edit", deploy: "rocket-launch", api: "code" }[type] || "code";
+                                    const typeColor = { create: "#2563eb", edit: "#7c3aed", deploy: "#059669", api: "#d97706" }[type] || "#64748b";
+                                    return (
+                                        <View key={log.id ?? log.Id ?? i} style={styles.changeLogItem}>
+                                            <View style={[styles.changeLogIconWrap, { backgroundColor: typeColor + "30" }]}>
+                                                <MaterialIcons name={typeIcon} size={20} color={typeColor} />
+                                            </View>
+                                            <View style={styles.changeLogBody}>
+                                                <Text style={styles.changeLogTitle}>{title}</Text>
+                                                {description ? <Text style={styles.changeLogDesc}>{description}</Text> : null}
+                                                <Text style={styles.changeLogDate}>{dateStr}</Text>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+                            </>
+                        )}
+                    </>
+                ) : (
+                    <>
                 {/* My Organizations */}
                 <View style={styles.sectionTitleRow}>
                     <MaterialIcons name="groups" size={22} color="#2563eb" />
@@ -327,6 +475,8 @@ export default function DashboardScreen({ navigation }) {
                             <MaterialIcons name="add-circle" size={22} color="white" />
                             <Text style={styles.createButtonText}>Create New Project</Text>
                         </TouchableOpacity>
+                    </>
+                )}
                     </>
                 )}
             </ScrollView>
@@ -546,6 +696,95 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textAlign: "center",
         paddingVertical: 24,
+    },
+    changeLogEmpty: {
+        paddingVertical: 48,
+        alignItems: "center",
+        backgroundColor: "#1e293b",
+        borderRadius: 16,
+        marginTop: 8,
+        paddingHorizontal: 24,
+    },
+    changeLogEmptyText: {
+        color: "#94a3b8",
+        fontSize: 16,
+        marginTop: 12,
+    },
+    changeLogEmptySub: {
+        color: "#64748b",
+        fontSize: 13,
+        marginTop: 4,
+    },
+    changeLogFilterRow: {
+        marginBottom: 10,
+    },
+    changeLogFilterLabel: {
+        fontSize: 13,
+        color: "#94a3b8",
+    },
+    changeLogProjectFilter: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+        marginBottom: 16,
+    },
+    changeLogProjectChip: {
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 20,
+        backgroundColor: "#1e293b",
+        borderWidth: 1,
+        borderColor: "transparent",
+    },
+    changeLogProjectChipActive: {
+        backgroundColor: "rgba(37, 99, 235, 0.25)",
+        borderColor: "#2563eb",
+    },
+    changeLogProjectChipText: {
+        fontSize: 13,
+        color: "#94a3b8",
+    },
+    changeLogProjectChipTextActive: {
+        color: "#60a5fa",
+        fontWeight: "600",
+    },
+    changeLogList: {
+        marginTop: 8,
+        gap: 0,
+    },
+    changeLogItem: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 12,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#1e293b",
+    },
+    changeLogIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    changeLogBody: {
+        flex: 1,
+        minWidth: 0,
+    },
+    changeLogTitle: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#e2e8f0",
+    },
+    changeLogDesc: {
+        fontSize: 13,
+        color: "#94a3b8",
+        marginTop: 4,
+    },
+    changeLogDate: {
+        fontSize: 12,
+        color: "#64748b",
+        marginTop: 4,
     },
     modalOverlay: {
         flex: 1,
