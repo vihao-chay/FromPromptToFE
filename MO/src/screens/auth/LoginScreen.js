@@ -12,7 +12,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
-import { MaterialIcons } from "@expo/vector-icons";
+import { AntDesign, MaterialIcons } from "@expo/vector-icons";
 
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/Button";
@@ -147,8 +147,8 @@ export default function LoginScreen({ navigation }) {
                     <ActivityIndicator color="white" />
                 ) : (
                     <>
-                        <MaterialIcons
-                            name="g-translate"
+                        <AntDesign
+                            name="google"
                             size={24}
                             color="white"
                             style={{ marginRight: 10 }}
