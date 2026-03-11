@@ -35,7 +35,11 @@ const AdminUsers: React.FC = () => {
                 pageSize: PAGE_SIZE,
             });
             const data = res.data.content;
-            setUsers(data.totalItems);
+            const items = (data.totalItems || []).map((u: any) => ({
+                ...u,
+                avatarUrl: (u.avatarUrl ?? u.AvatarUrl) ?? null,
+            }));
+            setUsers(items);
             setTotalRow(data.totalRow);
         } catch {
             setError('Failed to load users.');
@@ -100,14 +104,6 @@ const AdminUsers: React.FC = () => {
             setError(err.response?.data?.message || 'Failed to delete selected users.');
         } finally {
             setBulkDeleting(false);
-        }
-    };
-
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedIds(users.map(u => u.id));
-        } else {
-            setSelectedIds([]);
         }
     };
 
@@ -182,18 +178,22 @@ const AdminUsers: React.FC = () => {
                 </div>
             )}
 
-            {/* Table */}
+            {/* Table - horizontal scroll when wide */}
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1c2230]">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr className="bg-slate-50 dark:bg-slate-900/50">
                             <th className="px-4 py-4 w-12 text-center">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
-                                    onChange={handleSelectAll}
-                                    checked={users.length > 0 && selectedIds.length === users.length}
-                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedIds(users.length > 0 && selectedIds.length === users.length ? [] : users.map(u => u.id))}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-md border-2 border-slate-400 dark:border-slate-500 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                                    style={users.length > 0 && selectedIds.length === users.length ? { backgroundColor: '#2563eb', borderColor: '#fff', boxShadow: '0 0 0 1px rgba(255,255,255,0.5)' } : undefined}
+                                >
+                                    {users.length > 0 && selectedIds.length === users.length && (
+                                        <span className="material-symbols-outlined text-white text-sm" style={{ fontSize: 14 }}>check</span>
+                                    )}
+                                </button>
                             </th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">User</th>
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Provider</th>
@@ -219,26 +219,38 @@ const AdminUsers: React.FC = () => {
                                 </td>
                             </tr>
                         ) : users.map(user => (
-                            <tr key={user.id} className={`transition-colors ${selectedIds.includes(user.id) ? 'bg-primary/5' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
+                            <tr key={user.id} className={`transition-colors ${selectedIds.includes(user.id) ? 'bg-blue-500/5' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
                                 <td className="px-4 py-4 text-center">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
-                                        checked={selectedIds.includes(user.id)}
-                                        onChange={() => handleSelectToggle(user.id)}
-                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectToggle(user.id)}
+                                        className="inline-flex items-center justify-center w-5 h-5 rounded-md border-2 border-slate-400 dark:border-slate-500 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                                        style={selectedIds.includes(user.id) ? { backgroundColor: '#2563eb', borderColor: '#fff', boxShadow: '0 0 0 1px rgba(255,255,255,0.5)' } : undefined}
+                                    >
+                                        {selectedIds.includes(user.id) && (
+                                            <span className="material-symbols-outlined text-white text-sm" style={{ fontSize: 14 }}>check</span>
+                                        )}
+                                    </button>
                                 </td>
                                 {/* User name/email */}
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 ring-2 ring-inset ring-slate-200/50 dark:ring-slate-700/50">
                                             {user.avatarUrl ? (
-                                                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="font-bold text-slate-400 text-sm">
-                                                    {(user.name || user.email).charAt(0).toUpperCase()}
-                                                </span>
-                                            )}
+                                                <img
+                                                    src={user.avatarUrl}
+                                                    alt=""
+                                                    className="w-full h-full object-cover rounded-full absolute inset-0"
+                                                    referrerPolicy="no-referrer"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                        (e.target as HTMLImageElement).closest('div')?.querySelector('[data-avatar-fallback]')?.classList.remove('hidden');
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <span className={user.avatarUrl ? 'hidden font-bold text-slate-400 text-sm' : 'font-bold text-slate-400 text-sm'} data-avatar-fallback>
+                                                {(user.name || user.email).charAt(0).toUpperCase()}
+                                            </span>
                                         </div>
                                         <div>
                                             <p className="font-bold text-slate-900 dark:text-white text-sm">

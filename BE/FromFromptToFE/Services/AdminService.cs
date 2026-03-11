@@ -1,3 +1,4 @@
+using System.Globalization;
 using FromFromptToFE.Base;
 using FromFromptToFE.Data;
 using FromFromptToFE.DTOs.Admin;
@@ -32,7 +33,8 @@ namespace FromFromptToFE.Services
             if (projectTypes.Count == 0 && totalProjects > 0)
                 projectTypes.Add(new ChartDataPointDto { Name = "Web App", Value = totalProjects });
 
-             // User growth for last 7 days (Line Chart)
+            // User growth for last 7 days — same format for grouping and labels (InvariantCulture)
+            var inv = CultureInfo.InvariantCulture;
             var weekAgo = DateTime.UtcNow.AddDays(-6).Date;
             var recentUsers = await _context.Users
                 .Where(u => u.CreatedAt >= weekAgo)
@@ -41,16 +43,17 @@ namespace FromFromptToFE.Services
 
             var groupedGrowth = recentUsers
                 .GroupBy(u => u.CreatedAt?.Date ?? DateTime.UtcNow.Date)
-                .ToDictionary(g => g.Key.ToString("MMM dd"), g => g.Count());
+                .ToDictionary(g => g.Key.ToString("MMM dd", inv), g => g.Count());
 
             var userGrowth = new List<ChartDataPointDto>();
             for (int i = 6; i >= 0; i--)
             {
-                var dateStr = DateTime.UtcNow.AddDays(-i).ToString("MMM dd");
+                var day = DateTime.UtcNow.AddDays(-i);
+                var dateStr = day.ToString("MMM dd", inv);
                 userGrowth.Add(new ChartDataPointDto
                 {
                     Name = dateStr,
-                    Value = groupedGrowth.ContainsKey(dateStr) ? groupedGrowth[dateStr] : 0
+                    Value = groupedGrowth.TryGetValue(dateStr, out var count) ? count : 0
                 });
             }
 
