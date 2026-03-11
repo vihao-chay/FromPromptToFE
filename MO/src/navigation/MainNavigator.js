@@ -9,6 +9,7 @@ import ProjectLogsScreen from "../screens/project/ProjectLogsScreen";
 import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
 import AdminUsersScreen from "../screens/admin/AdminUsersScreen";
 import AdminProjectsScreen from "../screens/admin/AdminProjectsScreen";
+import MainTabNavigator from "./MainTabNavigator";
 
 const Stack = createNativeStackNavigator();
 
@@ -18,8 +19,7 @@ export default function MainNavigator() {
       <Stack.Screen name="OnboardingCheck" component={OnboardingCheckScreen} />
       <Stack.Screen name="NewOrganization" component={NewOrganizationScreen} />
       <Stack.Screen name="NewProject" component={NewProjectScreen} />
-      <Stack.Screen name="Dashboard" component={DashboardScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="ProjectLogs" component={ProjectLogsScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />

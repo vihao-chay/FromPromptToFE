@@ -315,7 +315,7 @@ export default function AdminUsersScreen({ navigation }) {
                 loading={bulkDeleting}
                 destructive
             />
-            <AdminTabBar active="Dashboard" onChange={(tab) => { if (tab === "Profile") navigation.navigate("Profile"); if (tab === "Dashboard") navigation.navigate("AdminDashboard"); }} />
+            <AdminTabBar active="Dashboard" onChange={(tab) => { if (tab === "Profile") navigation.navigate("MainTabs", { screen: "Profile" }); if (tab === "Dashboard") navigation.navigate("AdminDashboard"); }} />
         </View>
     );
 }

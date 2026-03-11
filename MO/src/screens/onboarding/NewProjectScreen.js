@@ -74,9 +74,9 @@ export default function NewProjectScreen({ navigation, route }) {
             const projectId = created?.id ?? created?.Id;
             showToast("Project created.", "success");
             if (fromOnboarding) {
-                navigation.replace("Dashboard");
+                navigation.replace("MainTabs");
             } else {
-                navigation.replace("Dashboard");
+                navigation.replace("MainTabs");
             }
         } catch (err) {
             setError(err?.message ?? "Could not create project. Please try again.");

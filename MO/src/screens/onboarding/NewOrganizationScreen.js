@@ -38,7 +38,7 @@ export default function NewOrganizationScreen({ navigation, route }) {
             if (fromOnboarding && orgId) {
                 navigation.replace("NewProject", { organizationId: orgId, fromOnboarding: true });
             } else {
-                navigation.replace("Dashboard");
+                navigation.replace("MainTabs");
             }
             showToast("Organization created.", "success");
         } catch (err) {
@@ -98,7 +98,7 @@ export default function NewOrganizationScreen({ navigation, route }) {
                 {!fromOnboarding ? (
                     <TouchableOpacity
                         style={styles.cancelBtn}
-                        onPress={() => navigation.replace("Dashboard")}
+                        onPress={() => navigation.replace("MainTabs")}
                     >
                         <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>

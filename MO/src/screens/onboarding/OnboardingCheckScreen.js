@@ -82,7 +82,7 @@ export default function OnboardingCheckScreen({ navigation }) {
         } else if (status === STATUS.noProject && firstOrgId) {
             navigation.replace("NewProject", { organizationId: firstOrgId, fromOnboarding: true });
         } else if (status === STATUS.ready) {
-            navigation.replace("Dashboard");
+            navigation.replace("MainTabs");
         } else if (status === STATUS.unauthorized) {
             logout();
         }

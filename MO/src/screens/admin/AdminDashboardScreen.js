@@ -49,7 +49,7 @@ export default function AdminDashboardScreen({ navigation }) {
                 <Logo />
                 <TouchableOpacity
                     style={styles.backToDashboard}
-                    onPress={() => navigation.navigate("Dashboard")}
+                    onPress={() => navigation.navigate("MainTabs")}
                     activeOpacity={0.7}
                 >
                     <MaterialIcons name="home" size={22} color="#2563eb" />
@@ -167,7 +167,7 @@ export default function AdminDashboardScreen({ navigation }) {
                     </>
                 ) : null}
             </ScrollView>
-            <AdminTabBar active="Dashboard" onChange={(tab) => { if (tab === "Profile") navigation.navigate("Profile"); if (tab === "Dashboard") navigation.navigate("Dashboard"); }} />
+            <AdminTabBar active="Dashboard" onChange={(tab) => { if (tab === "Profile") navigation.navigate("MainTabs", { screen: "Profile" }); if (tab === "Dashboard") navigation.navigate("MainTabs"); }} />
         </View>
     );
 }

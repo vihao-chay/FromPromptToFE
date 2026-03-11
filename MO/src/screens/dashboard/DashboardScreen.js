@@ -11,6 +11,7 @@ import {
     Modal,
     Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProjectCard from "../../components/ProjectCard";
 import SmoothAreaChart from "../../components/SmoothAreaChart";
@@ -49,7 +50,6 @@ function getOrgIconStyle(index) {
 
 export default function DashboardScreen({ navigation }) {
     const { user: authUser } = useAuth();
-    const [activeTab, setActiveTab] = useState("Dashboard");
     const [user, setUser] = useState(null);
     const [organizations, setOrganizations] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -163,13 +163,6 @@ export default function DashboardScreen({ navigation }) {
         setRefreshing(false);
     };
 
-    const handleTabChange = (tab) => {
-        setActiveTab(tab);
-        if (tab === "Profile") {
-            navigation.navigate("Profile");
-        }
-    };
-
     const handleOrgPress = (orgId, orgName) => {
         if (orgId === selectedOrgId) return;
         setConfirmOrg({ id: orgId, name: orgName });
@@ -207,7 +200,7 @@ export default function DashboardScreen({ navigation }) {
     const totalByType = projectsByType.reduce((sum, e) => sum + Number(e.value), 0);
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             <View style={styles.header}>
                 <Logo />
             </View>
@@ -357,162 +350,160 @@ export default function DashboardScreen({ navigation }) {
                     </>
                 ) : (
                     <>
-                {/* My Organizations */}
-                <View style={styles.sectionTitleRow}>
-                    <MaterialIcons name="groups" size={22} color="#2563eb" />
-                    <Text style={styles.sectionTitle}>My Organizations</Text>
-                </View>
-                {loading ? (
-                    <View style={styles.orgPlaceholder}>
-                        <ActivityIndicator size="small" color="#2563eb" />
-                    </View>
-                ) : organizations.length === 0 ? (
-                    <Text style={styles.emptyOrgs}>No organizations. Create one first.</Text>
-                ) : (
-                    <View style={styles.orgList}>
-                        {organizations.map((org, index) => {
-                            const orgId = org.organizationId ?? org.OrganizationId ?? "";
-                            const orgName = org.organizationName ?? org.OrganizationName ?? "Unnamed";
-                            const plan = org.organizationPlan ?? org.OrganizationPlan ?? "";
-                            const isSelected = selectedOrgId === orgId;
-                            const iconStyle = getOrgIconStyle(index);
-                            const projectCount = projects.filter((p) => (p.organizationId || "") === orgId).length;
-                            return (
-                                <TouchableOpacity
-                                    key={orgId}
-                                    style={[styles.orgCard, isSelected && styles.orgCardSelected]}
-                                    onPress={() => handleOrgPress(orgId, orgName)}
-                                    activeOpacity={0.85}
-                                >
-                                    <View style={[styles.orgIconWrap, { backgroundColor: iconStyle.bg }]}>
-                                        <MaterialIcons name={iconStyle.icon} size={26} color={iconStyle.color} />
-                                    </View>
-                                    <View style={styles.orgCardBody}>
-                                        <Text
-                                            style={[styles.orgCardName, isSelected && styles.orgCardNameSelected]}
-                                            numberOfLines={1}
-                                        >
-                                            {orgName}
-                                        </Text>
-                                        <Text style={styles.orgCardMeta} numberOfLines={1}>
-                                            {plan ? `${plan} · ` : ""}{projectCount} project{projectCount !== 1 ? "s" : ""}
-                                        </Text>
-                                    </View>
-                                    {isSelected ? (
-                                        <View style={styles.orgSelectedBadge}>
-                                            <MaterialIcons name="check-circle" size={20} color="#2563eb" />
-                                        </View>
-                                    ) : (
-                                        <MaterialIcons name="chevron-right" size={22} color="#475569" />
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                )}
-
-                <View style={styles.titleRow}>
-                    <Text style={styles.screenTitle}>Projects</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                            {selectedOrgId ? `${projectsInSelectedOrg.length} in ${selectedOrgName}` : "0 Total"}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.searchRow}>
-                    <View style={styles.searchContainer}>
-                        <TextInput
-                            placeholder="Search projects..."
-                            placeholderTextColor="#94a3b8"
-                            style={styles.searchInput}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
-                        <MaterialIcons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
-                    </View>
-                    <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() =>
-                            navigation.navigate("NewProject", {
-                                fromOnboarding: false,
-                                organizationId: selectedOrgId || undefined,
-                            })
-                        }
-                    >
-                        <MaterialIcons name="add" size={24} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                {loading ? (
-                    <View style={styles.loadingWrap}>
-                        <ActivityIndicator size="large" color="#2563eb" />
-                        <Text style={styles.loadingText}>Loading projects...</Text>
-                    </View>
-                ) : (
-                    <>
-                        <View style={styles.projectList}>
-                            {filteredProjects.length === 0 ? (
-                                <Text style={styles.emptyText}>
-                                    {selectedOrgId
-                                        ? `No projects in this organization. Create a new project below.`
-                                        : "Select an organization above or create one first."}
-                                </Text>
-                            ) : (
-                                filteredProjects.map((project) => {
-                                    const dateStr = project.createdAt
-                                        ? new Date(project.createdAt).toLocaleDateString(undefined, {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                        })
-                                        : "—";
-                                    const outputCount = outputCountByProject[project.id];
-                                    const sub = outputCount != null
-                                        ? `${outputCount} output(s) · ${dateStr}`
-                                        : dateStr;
+                        {/* My Organizations */}
+                        <View style={styles.sectionTitleRow}>
+                            <MaterialIcons name="groups" size={22} color="#2563eb" />
+                            <Text style={styles.sectionTitle}>My Organizations</Text>
+                        </View>
+                        {loading ? (
+                            <View style={styles.orgPlaceholder}>
+                                <ActivityIndicator size="small" color="#2563eb" />
+                            </View>
+                        ) : organizations.length === 0 ? (
+                            <Text style={styles.emptyOrgs}>No organizations. Create one first.</Text>
+                        ) : (
+                            <View style={styles.orgList}>
+                                {organizations.map((org, index) => {
+                                    const orgId = org.organizationId ?? org.OrganizationId ?? "";
+                                    const orgName = org.organizationName ?? org.OrganizationName ?? "Unnamed";
+                                    const plan = org.organizationPlan ?? org.OrganizationPlan ?? "";
+                                    const isSelected = selectedOrgId === orgId;
+                                    const iconStyle = getOrgIconStyle(index);
+                                    const projectCount = projects.filter((p) => (p.organizationId || "") === orgId).length;
                                     return (
                                         <TouchableOpacity
-                                            key={project.id}
-                                            onPress={() =>
-                                                navigation.navigate("ProjectLogs", {
-                                                    projectId: project.id,
-                                                    projectName: project.name,
-                                                })
-                                            }
-                                            activeOpacity={0.8}
+                                            key={orgId}
+                                            style={[styles.orgCard, isSelected && styles.orgCardSelected]}
+                                            onPress={() => handleOrgPress(orgId, orgName)}
+                                            activeOpacity={0.85}
                                         >
-                                            <ProjectCard
-                                                title={project.name}
-                                                tech={project.projectType || "Draft"}
-                                                updated={sub}
-                                                logo={null}
-                                            />
+                                            <View style={[styles.orgIconWrap, { backgroundColor: iconStyle.bg }]}>
+                                                <MaterialIcons name={iconStyle.icon} size={26} color={iconStyle.color} />
+                                            </View>
+                                            <View style={styles.orgCardBody}>
+                                                <Text
+                                                    style={[styles.orgCardName, isSelected && styles.orgCardNameSelected]}
+                                                    numberOfLines={1}
+                                                >
+                                                    {orgName}
+                                                </Text>
+                                                <Text style={styles.orgCardMeta} numberOfLines={1}>
+                                                    {plan ? `${plan} · ` : ""}{projectCount} project{projectCount !== 1 ? "s" : ""}
+                                                </Text>
+                                            </View>
+                                            {isSelected ? (
+                                                <View style={styles.orgSelectedBadge}>
+                                                    <MaterialIcons name="check-circle" size={20} color="#2563eb" />
+                                                </View>
+                                            ) : (
+                                                <MaterialIcons name="chevron-right" size={22} color="#475569" />
+                                            )}
                                         </TouchableOpacity>
                                     );
-                                })
-                            )}
+                                })}
+                            </View>
+                        )}
+
+                        <View style={styles.titleRow}>
+                            <Text style={styles.screenTitle}>Projects</Text>
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>
+                                    {selectedOrgId ? `${projectsInSelectedOrg.length} in ${selectedOrgName}` : "0 Total"}
+                                </Text>
+                            </View>
                         </View>
 
-                        <TouchableOpacity
-                            style={styles.createButton}
-                            onPress={() =>
-                                navigation.navigate("NewProject", {
-                                    fromOnboarding: false,
-                                    organizationId: selectedOrgId || undefined,
-                                })
-                            }
-                        >
-                            <MaterialIcons name="add-circle" size={22} color="white" />
-                            <Text style={styles.createButtonText}>Create New Project</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
+                        <View style={styles.searchRow}>
+                            <View style={styles.searchContainer}>
+                                <TextInput
+                                    placeholder="Search projects..."
+                                    placeholderTextColor="#94a3b8"
+                                    style={styles.searchInput}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+                                <MaterialIcons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
+                            </View>
+                            <TouchableOpacity
+                                style={styles.addButton}
+                                onPress={() =>
+                                    navigation.navigate("NewProject", {
+                                        fromOnboarding: false,
+                                        organizationId: selectedOrgId || undefined,
+                                    })
+                                }
+                            >
+                                <MaterialIcons name="add" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {loading ? (
+                            <View style={styles.loadingWrap}>
+                                <ActivityIndicator size="large" color="#2563eb" />
+                                <Text style={styles.loadingText}>Loading projects...</Text>
+                            </View>
+                        ) : (
+                            <>
+                                <View style={styles.projectList}>
+                                    {filteredProjects.length === 0 ? (
+                                        <Text style={styles.emptyText}>
+                                            {selectedOrgId
+                                                ? `No projects in this organization. Create a new project below.`
+                                                : "Select an organization above or create one first."}
+                                        </Text>
+                                    ) : (
+                                        filteredProjects.map((project) => {
+                                            const dateStr = project.createdAt
+                                                ? new Date(project.createdAt).toLocaleDateString(undefined, {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    year: "numeric",
+                                                })
+                                                : "—";
+                                            const outputCount = outputCountByProject[project.id];
+                                            const sub = outputCount != null
+                                                ? `${outputCount} output(s) · ${dateStr}`
+                                                : dateStr;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={project.id}
+                                                    onPress={() =>
+                                                        navigation.navigate("ProjectLogs", {
+                                                            projectId: project.id,
+                                                            projectName: project.name,
+                                                        })
+                                                    }
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <ProjectCard
+                                                        title={project.name}
+                                                        tech={project.projectType || "Draft"}
+                                                        updated={sub}
+                                                        logo={null}
+                                                    />
+                                                </TouchableOpacity>
+                                            );
+                                        })
+                                    )}
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.createButton}
+                                    onPress={() =>
+                                        navigation.navigate("NewProject", {
+                                            fromOnboarding: false,
+                                            organizationId: selectedOrgId || undefined,
+                                        })
+                                    }
+                                >
+                                    <MaterialIcons name="add-circle" size={22} color="white" />
+                                    <Text style={styles.createButtonText}>Create New Project</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </>
                 )}
             </ScrollView>
-
-            <BottomTabBar active={activeTab} onChange={handleTabChange} />
 
             {/* Confirm switch organization modal */}
             <Modal
@@ -548,7 +539,7 @@ export default function DashboardScreen({ navigation }) {
                     </View>
                 </TouchableOpacity>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 }
 

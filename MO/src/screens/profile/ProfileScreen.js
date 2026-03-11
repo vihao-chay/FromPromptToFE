@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { getMe, getMyOrganizations, updateProfile, changePassword } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
@@ -160,11 +161,12 @@ export default function ProfileScreen({ navigation }) {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.header}>
                     <TouchableOpacity
                         onPress={() => navigation.goBack()}
@@ -337,6 +339,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
