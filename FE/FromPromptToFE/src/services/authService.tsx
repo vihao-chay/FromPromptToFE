@@ -99,7 +99,7 @@ export async function getMyOrganizations(userId: string) {
   const raw = Array.isArray(content)
     ? content
     : ((content as unknown as { TotalItems?: UserOrganizationDto[] })
-        ?.TotalItems ?? []);
+      ?.TotalItems ?? []);
   return (Array.isArray(raw) ? raw : []).map((o: Record<string, unknown>) => ({
     organizationId: String(o.organizationId ?? o.OrganizationId ?? ""),
     organizationName: String(o.organizationName ?? o.OrganizationName ?? ""),
