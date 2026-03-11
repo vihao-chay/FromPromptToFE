@@ -2,6 +2,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 
+function getRoleFromToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return (
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+      payload["role"] ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 import authService, { getAuthErrorMessage } from "@/src/services/authService";
 import { Google } from "@/src/assets/icons/Google";
 import { GitHub } from "@/src/assets/icons/Github";
@@ -28,14 +41,24 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         );
         console.log("Google Login Success", response.data);
         const raw = response.data as Record<string, unknown> | undefined;
-        const content = (raw?.content ?? raw?.Content ?? raw) as Record<string, unknown> | undefined;
-        const token = (content?.token ?? content?.Token ?? raw?.token ?? raw?.Token) as string | undefined;
+        const content = (raw?.content ?? raw?.Content ?? raw) as
+          | Record<string, unknown>
+          | undefined;
+        const token = (content?.token ??
+          content?.Token ??
+          raw?.token ??
+          raw?.Token) as string | undefined;
 
-        if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+        if (
+          token &&
+          /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)
+        ) {
           localStorage.setItem("token", token);
           localStorage.setItem("user", JSON.stringify(content ?? {}));
           onLogin?.();
-          navigate("/dashboard");
+          navigate(
+            getRoleFromToken(token) === "Admin" ? "/admin" : "/dashboard",
+          );
         } else {
           setError("Login succeeded but token invalid. Please try again.");
         }
@@ -52,7 +75,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleGitHubLogin = () => {
     if (!GITHUB_OAUTH_URL) {
-      setError("GitHub OAuth is not configured. Add VITE_GITHUB_CLIENT_ID to .env (create OAuth App at https://github.com/settings/developers).");
+      setError(
+        "GitHub OAuth is not configured. Add VITE_GITHUB_CLIENT_ID to .env (create OAuth App at https://github.com/settings/developers).",
+      );
       return;
     }
     window.location.href = GITHUB_OAUTH_URL;
@@ -67,14 +92,22 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       const response = await authService.login(email, password);
       console.log("Data user:", response.data);
       const raw = response.data as Record<string, unknown> | undefined;
-      const content = (raw?.content ?? raw?.Content ?? raw) as Record<string, unknown> | undefined;
-      const token = (content?.token ?? content?.Token ?? raw?.token ?? raw?.Token) as string | undefined;
+      const content = (raw?.content ?? raw?.Content ?? raw) as
+        | Record<string, unknown>
+        | undefined;
+      const token = (content?.token ??
+        content?.Token ??
+        raw?.token ??
+        raw?.Token) as string | undefined;
 
-      if (token && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+      if (
+        token &&
+        /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)
+      ) {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(content ?? {}));
         onLogin?.();
-        navigate("/dashboard");
+        navigate(getRoleFromToken(token) === "Admin" ? "/admin" : "/dashboard");
       } else {
         console.warn("Token not found or invalid:", response.data);
         setError("Login succeeded but failed to retrieve valid token.");

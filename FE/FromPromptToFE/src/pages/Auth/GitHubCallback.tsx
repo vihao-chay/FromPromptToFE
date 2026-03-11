@@ -2,6 +2,19 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import authService from "@/src/services/authService";
 
+function getRoleFromToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return (
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+      payload["role"] ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 interface GitHubCallbackProps {
   onLogin?: () => void;
 }
@@ -109,7 +122,10 @@ export default function GitHubCallback({ onLogin }: GitHubCallbackProps) {
               return;
             }
             onLogin?.();
-            navigate("/dashboard", { replace: true });
+            navigate(
+              getRoleFromToken(jwt) === "Admin" ? "/admin" : "/dashboard",
+              { replace: true },
+            );
           } else {
             throw new Error(
               "Token not found or invalid (must be JWT from backend)",

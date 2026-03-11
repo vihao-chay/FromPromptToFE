@@ -40,6 +40,7 @@ namespace FromFromptToFE.Services
             var user = _mapper.Map<User>(dto);
             user.PasswordHash = PasswordHelper.HashPassword(dto.Password);
             user.VerifyToken = Guid.NewGuid().ToString("N");
+            user.IsActive = true; // Tài khoản mới luôn active, chờ xác thực email
             user.CreatedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -89,6 +90,11 @@ namespace FromFromptToFE.Services
             if (user.IsVerified != true)
             {
                 throw new Exception("Tài khoản chưa được xác thực");
+            }
+
+            if (!user.IsActive)
+            {
+                throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
             }
 
             var role = user.IsAdmin == true ? "Admin" : "User";
@@ -172,6 +178,7 @@ namespace FromFromptToFE.Services
                         GoogleId = payload.Subject,
                         AvatarUrl = payload.Picture,
                         IsVerified = true,
+                        IsActive = true,
                         Provider = "google",
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -185,6 +192,9 @@ namespace FromFromptToFE.Services
                     user.UpdatedAt = DateTime.UtcNow;
                     await _userRepository.UpdateAsync(user);
                 }
+
+                if (!user.IsActive)
+                    throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
 
                 var role = user.IsAdmin == true ? "Admin" : "User";
 
@@ -346,6 +356,7 @@ namespace FromFromptToFE.Services
                             GitHubAccessToken = accessToken,
                             AvatarUrl = avatarUrl,
                             IsVerified = true,
+                            IsActive = true,
                             Provider = "github",
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
@@ -360,6 +371,9 @@ namespace FromFromptToFE.Services
                         user.UpdatedAt = DateTime.UtcNow;
                         await _userRepository.UpdateAsync(user);
                     }
+
+                    if (!user.IsActive)
+                        throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
 
                     var role = user.IsAdmin == true ? "Admin" : "User";
 
@@ -414,6 +428,9 @@ namespace FromFromptToFE.Services
             await _userRepository.UpdateAsync(user);
 
             // Generate Token for Auto-Login
+            if (!user.IsActive)
+                throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+
             var role = user.IsAdmin == true ? "Admin" : "User";
 
             var response = _mapper.Map<AuthResponseDto>(user);
@@ -579,6 +596,8 @@ namespace FromFromptToFE.Services
             {
                 return null;
             }
+
+            if (!user.IsActive) return null; // Tài khoản bị ban → vô hiệu hóa refresh token
 
             var role = user.IsAdmin == true ? "Admin" : "User";
 
