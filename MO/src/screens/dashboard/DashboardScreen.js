@@ -9,9 +9,12 @@ import {
     ActivityIndicator,
     RefreshControl,
     Modal,
+    Dimensions,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import ProjectCard from "../../components/ProjectCard";
+import SmoothAreaChart from "../../components/SmoothAreaChart";
+import DonutChart from "../../components/DonutChart";
 import BottomTabBar from "../../components/BottomTabBar";
 import Logo from "../../components/Logo";
 import Button from "../../components/Button";
@@ -19,7 +22,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getMe, getMyOrganizations } from "../../services/authService";
 import projectService from "../../services/projectService";
 import projectOutputService from "../../services/projectOutputService";
-import changeLogService from "../../services/changeLogService";
+import adminService from "../../services/adminService";
 
 function normalizeUser(c) {
     if (!c) return null;
@@ -28,6 +31,7 @@ function normalizeUser(c) {
         email: String(c.email ?? c.Email ?? ""),
         name: c.name != null ? String(c.name) : (c.Name != null ? String(c.Name) : undefined),
         avatarUrl: c.avatarUrl != null ? String(c.avatarUrl) : (c.AvatarUrl != null ? String(c.AvatarUrl) : undefined),
+        role: String(c.role ?? c.Role ?? ""),
     };
 }
 
@@ -44,8 +48,8 @@ function getOrgIconStyle(index) {
 }
 
 export default function DashboardScreen({ navigation }) {
+    const { user: authUser } = useAuth();
     const [activeTab, setActiveTab] = useState("Dashboard");
-    useAuth();
     const [user, setUser] = useState(null);
     const [organizations, setOrganizations] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -57,13 +61,12 @@ export default function DashboardScreen({ navigation }) {
     const [selectedOrgId, setSelectedOrgId] = useState(null);
     /** Pending org to switch to – show confirm modal. */
     const [confirmOrg, setConfirmOrg] = useState(null);
-    /** Change logs (tab "Change Logs") – same API as FE. */
-    const [changeLogs, setChangeLogs] = useState([]);
-    const [changeLogsLoading, setChangeLogsLoading] = useState(false);
-    /** Filter change logs by project (within selected org). null = all projects in org. */
-    const [selectedProjectIdForLogs, setSelectedProjectIdForLogs] = useState(null);
+    /** Admin: stats for System Overview (shown inline when isAdmin). */
+    const [adminStats, setAdminStats] = useState(null);
+    const [adminLoading, setAdminLoading] = useState(false);
+    const [adminError, setAdminError] = useState(null);
 
-    const loadData = async () => {
+    const loadData = async (opts) => {
         try {
             const me = await getMe();
             const u = normalizeUser(me);
@@ -125,7 +128,7 @@ export default function DashboardScreen({ navigation }) {
             setProjects([]);
         } finally {
             setLoading(false);
-            setRefreshing(false);
+            if (!opts?.fromRefresh) setRefreshing(false);
         }
     };
 
@@ -133,58 +136,37 @@ export default function DashboardScreen({ navigation }) {
         loadData();
     }, []);
 
+    const isAdmin = (authUser?.role ?? authUser?.Role ?? user?.role ?? user?.Role ?? "") === "Admin";
     useEffect(() => {
-        // When selected org changes, clear project filter so "Tất cả dự án" is used for the new org
-        setSelectedProjectIdForLogs(null);
-        if (activeTab === "Change Logs" && selectedOrgId) {
-            loadChangeLogs({ projectId: null });
-        }
-    }, [selectedOrgId]);
+        if (!isAdmin) return;
+        setAdminLoading(true);
+        setAdminError(null);
+        adminService
+            .getDashboardStats()
+            .then((c) => setAdminStats(c))
+            .catch(() => setAdminError("Failed to load dashboard stats."))
+            .finally(() => setAdminLoading(false));
+    }, [isAdmin]);
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        loadData();
-    };
-
-    const loadChangeLogs = async (overrides = {}) => {
-        const projectId = overrides.projectId !== undefined ? overrides.projectId : selectedProjectIdForLogs;
-        setChangeLogsLoading(true);
-        try {
-            const params = { pageIndex: 1, pageSize: 50, sortBy: "CreatedAt", sortOrder: "desc" };
-            // Do not send organizationId: many DB rows have organization_id NULL, so filter client-side
-            if (projectId) {
-                params.entityType = "Project";
-                params.entityId = projectId;
+        await loadData({ fromRefresh: true });
+        if ((authUser?.role ?? authUser?.Role ?? user?.role ?? user?.Role ?? "") === "Admin") {
+            setAdminError(null);
+            try {
+                const c = await adminService.getDashboardStats();
+                setAdminStats(c);
+            } catch (_) {
+                setAdminError("Failed to load dashboard stats.");
             }
-            const list = await changeLogService.getAll(params);
-            const raw = Array.isArray(list) ? list : [];
-            const orgId = overrides.organizationId !== undefined ? overrides.organizationId : selectedOrgId;
-            const projectIdsInOrg = orgId ? (projects.filter((p) => (p.organizationId || "") === orgId).map((p) => p.id)) : [];
-            const filtered = orgId
-                ? raw.filter((log) => {
-                    const logOrgId = log.organizationId ?? log.OrganizationId ?? null;
-                    const logEntityType = (log.entityType ?? log.EntityType ?? "").toString();
-                    const logEntityId = log.entityId ?? log.EntityId ?? "";
-                    if (logOrgId && logOrgId !== orgId) return false;
-                    if (logEntityType === "Project" && logEntityId && !projectIdsInOrg.includes(logEntityId)) return false;
-                    return true;
-                })
-                : raw;
-            setChangeLogs(filtered);
-        } catch (_) {
-            setChangeLogs([]);
-        } finally {
-            setChangeLogsLoading(false);
         }
+        setRefreshing(false);
     };
 
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         if (tab === "Profile") {
             navigation.navigate("Profile");
-        }
-        if (tab === "Change Logs") {
-            loadChangeLogs();
         }
     };
 
@@ -215,6 +197,15 @@ export default function DashboardScreen({ navigation }) {
         (o) => (o.organizationId ?? o.OrganizationId) === selectedOrgId
     )?.organizationName ?? organizations.find((o) => (o.organizationId ?? o.OrganizationId) === selectedOrgId)?.OrganizationName ?? "Organization";
 
+    const totalUsed = adminStats ? (adminStats.totalTokensUsed ?? adminStats.TotalTokensUsed ?? 0) : 0;
+    const totalRemaining = adminStats ? (adminStats.totalTokensRemaining ?? adminStats.TotalTokensRemaining ?? 0) : 0;
+    const tokenUsedPercent = (totalUsed + totalRemaining) > 0 ? Math.min(100, Math.round((totalUsed / (totalUsed + totalRemaining)) * 100)) : 0;
+
+    const userGrowth = Array.isArray(adminStats?.userGrowth) ? adminStats.userGrowth : [];
+    const projectsByType = Array.isArray(adminStats?.projectsByType) ? adminStats.projectsByType : [];
+    const maxUserGrowth = userGrowth.length ? Math.max(...userGrowth.map((d) => Number(d.value)), 1) : 1;
+    const totalByType = projectsByType.reduce((sum, e) => sum + Number(e.value), 0);
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -224,105 +215,145 @@ export default function DashboardScreen({ navigation }) {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={activeTab === "Change Logs" ? changeLogsLoading : refreshing}
-                        onRefresh={activeTab === "Change Logs" ? loadChangeLogs : onRefresh}
-                        tintColor="#2563eb"
-                    />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />
                 }
             >
-                {activeTab === "Change Logs" ? (
+                {isAdmin ? (
                     <>
-                        <View style={styles.sectionTitleRow}>
-                            <MaterialIcons name="history" size={22} color="#2563eb" />
-                            <Text style={styles.sectionTitle}>Change Logs</Text>
+                        <View style={styles.adminTitleRow}>
+                            <Text style={styles.adminScreenTitle}>System Overview</Text>
                         </View>
-                        {!selectedOrgId ? (
-                            <View style={styles.changeLogEmpty}>
-                                <MaterialIcons name="groups" size={40} color="#64748b" />
-                                <Text style={styles.changeLogEmptyText}>Select an organization on the Dashboard tab to view change logs by organization.</Text>
+                        <Text style={styles.adminSubtitle}>Comprehensive platform analytics and AI consumption</Text>
+                        {adminError ? (
+                            <View style={styles.adminErrorBox}>
+                                <MaterialIcons name="error" size={20} color="#ef4444" />
+                                <Text style={styles.adminErrorText}>{adminError}</Text>
                             </View>
-                        ) : (
-                            <>
-                        <View style={styles.changeLogFilterRow}>
-                            <Text style={styles.changeLogFilterLabel}>Organization: {selectedOrgName}</Text>
-                        </View>
-                        <View style={styles.changeLogProjectFilter}>
-                            <TouchableOpacity
-                                style={[styles.changeLogProjectChip, !selectedProjectIdForLogs && styles.changeLogProjectChipActive]}
-                                onPress={() => {
-                                    setSelectedProjectIdForLogs(null);
-                                    loadChangeLogs({ projectId: null });
-                                }}
-                            >
-                                <Text style={[styles.changeLogProjectChipText, !selectedProjectIdForLogs && styles.changeLogProjectChipTextActive]}>All projects</Text>
-                            </TouchableOpacity>
-                            {projectsInSelectedOrg.map((proj) => {
-                                const isSelected = selectedProjectIdForLogs === proj.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={proj.id}
-                                        style={[styles.changeLogProjectChip, isSelected && styles.changeLogProjectChipActive]}
-                                        onPress={() => {
-                                            setSelectedProjectIdForLogs(proj.id);
-                                            loadChangeLogs({ projectId: proj.id });
-                                        }}
-                                    >
-                                        <Text style={[styles.changeLogProjectChipText, isSelected && styles.changeLogProjectChipTextActive]} numberOfLines={1}>{proj.name}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                        {changeLogsLoading && changeLogs.length === 0 ? (
-                            <View style={styles.loadingWrap}>
+                        ) : null}
+                        {adminLoading ? (
+                            <View style={styles.adminLoadingWrap}>
                                 <ActivityIndicator size="large" color="#2563eb" />
-                                <Text style={styles.loadingText}>Loading change logs...</Text>
+                                <Text style={styles.adminLoadingText}>Loading system metrics...</Text>
                             </View>
-                        ) : changeLogs.length === 0 ? (
-                            <View style={styles.changeLogEmpty}>
-                                <MaterialIcons name="history" size={40} color="#64748b" />
-                                <Text style={styles.changeLogEmptyText}>No change logs yet.</Text>
-                                <Text style={styles.changeLogEmptySub}>Deploy or edit projects to see activity here.</Text>
-                            </View>
-                        ) : (
-                            <View style={styles.changeLogList}>
-                                {changeLogs.map((log, i) => {
-                                    const action = (log.action ?? log.Action ?? "Update").toString();
-                                    const entityType = (log.entityType ?? log.EntityType ?? "Item").toString();
-                                    const title = `${action} ${entityType}`;
-                                    const entityId = log.entityId ?? log.EntityId;
-                                    const actor = log.actorName ?? log.actorEmail ?? log.ActorName ?? log.ActorEmail ?? "—";
-                                    const descParts = [];
-                                    if (entityId) descParts.push(`Entity: ${entityId}`);
-                                    descParts.push(`By ${actor}`);
-                                    const description = descParts.join(" · ");
-                                    const rawDate = log.createdAt ?? log.CreatedAt ?? "";
-                                    const dateStr = rawDate
-                                        ? new Date(rawDate).toLocaleDateString(undefined, { dateStyle: "medium" }) +
-                                          " " +
-                                          new Date(rawDate).toLocaleTimeString(undefined, { timeStyle: "short" })
-                                        : "—";
-                                    const a = action.toLowerCase();
-                                    const type = a === "create" ? "create" : a === "update" || a === "edit" ? "edit" : a === "deploy" ? "deploy" : "api";
-                                    const typeIcon = { create: "add-circle", edit: "edit", deploy: "rocket-launch", api: "code" }[type] || "code";
-                                    const typeColor = { create: "#2563eb", edit: "#7c3aed", deploy: "#059669", api: "#d97706" }[type] || "#64748b";
-                                    return (
-                                        <View key={log.id ?? log.Id ?? i} style={styles.changeLogItem}>
-                                            <View style={[styles.changeLogIconWrap, { backgroundColor: typeColor + "30" }]}>
-                                                <MaterialIcons name={typeIcon} size={20} color={typeColor} />
-                                            </View>
-                                            <View style={styles.changeLogBody}>
-                                                <Text style={styles.changeLogTitle}>{title}</Text>
-                                                {description ? <Text style={styles.changeLogDesc}>{description}</Text> : null}
-                                                <Text style={styles.changeLogDate}>{dateStr}</Text>
+                        ) : adminStats ? (
+                            <>
+                                <View style={styles.adminStatGrid}>
+                                    <View style={styles.adminStatCard}>
+                                        <View style={[styles.adminStatIconWrap, { backgroundColor: "rgba(99, 102, 241, 0.3)" }]}>
+                                            <MaterialIcons name="group" size={24} color="#818cf8" />
+                                        </View>
+                                        <View style={styles.adminStatBody}>
+                                            <Text style={styles.adminStatTitle}>Total Users</Text>
+                                            <Text style={styles.adminStatValue}>{String(adminStats.totalUsers ?? adminStats.TotalUsers ?? 0)}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.adminStatCard}>
+                                        <View style={[styles.adminStatIconWrap, { backgroundColor: "rgba(249, 115, 22, 0.3)" }]}>
+                                            <MaterialIcons name="auto-awesome" size={24} color="#f97316" />
+                                        </View>
+                                        <View style={styles.adminStatBody}>
+                                            <Text style={styles.adminStatTitle}>Successful AI Prompts</Text>
+                                            <Text style={styles.adminStatValue}>{String(adminStats.totalAIGenerations ?? adminStats.TotalAIGenerations ?? 0)}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                                <View style={styles.adminChartCard}>
+                                    <View style={styles.adminChartTitleRow}>
+                                        <MaterialIcons name="trending-up" size={20} color="#6366f1" />
+                                        <Text style={styles.adminChartTitle}>New Users (Last 7 Days)</Text>
+                                    </View>
+                                    {userGrowth.length > 0 ? (
+                                        <View style={styles.adminAreaChartWrap}>
+                                            <SmoothAreaChart
+                                                data={userGrowth}
+                                                width={Dimensions.get("window").width - 32}
+                                                height={200}
+                                                color="#6366f1"
+                                                gradientOpacity={0.35}
+                                            />
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.adminChartEmpty}>No new users in the last 7 days</Text>
+                                    )}
+                                </View>
+                                <View style={styles.adminChartCard}>
+                                    <View style={styles.adminChartTitleRow}>
+                                        <MaterialIcons name="pie-chart" size={20} color="#6366f1" />
+                                        <Text style={styles.adminChartTitle}>Projects by Category</Text>
+                                    </View>
+                                    {projectsByType.length > 0 ? (
+                                        <View style={styles.adminDonutWrap}>
+                                            <DonutChart
+                                                data={projectsByType}
+                                                size={200}
+                                                strokeWidth={26}
+                                                colors={["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]}
+                                            />
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.adminChartEmpty}>No projects by type</Text>
+                                    )}
+                                </View>
+                                <View style={styles.adminTokenBox}>
+                                    <Text style={styles.adminTokenTitle}>AI Token Pool</Text>
+                                    <Text style={styles.adminTokenSub}>Global monthly limit for code generation.</Text>
+                                    <View style={styles.adminTokenRow}>
+                                        <View>
+                                            <Text style={styles.adminTokenUsedNum}>{String(totalUsed)}</Text>
+                                            <Text style={styles.adminTokenLabel}>Tokens Consumed</Text>
+                                        </View>
+                                        <View style={{ alignItems: "flex-end" }}>
+                                            <Text style={styles.adminTokenRemNum}>{String(totalRemaining)}</Text>
+                                            <Text style={styles.adminTokenLabel}>Remaining</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.adminProgressBarBg}>
+                                        <View style={[styles.adminProgressBarFill, { width: `${tokenUsedPercent}%` }]} />
+                                    </View>
+                                    <Text style={styles.adminProgressLegend}>{tokenUsedPercent}% Used</Text>
+                                </View>
+                                <View style={styles.adminVerificationBox}>
+                                    <Text style={styles.adminVerifyTitle}>User Verification</Text>
+                                    <View style={styles.adminVerifyRow}>
+                                        <View style={styles.adminVerifyItem}>
+                                            <MaterialIcons name="verified-user" size={24} color="#10b981" />
+                                            <View>
+                                                <Text style={styles.adminVerifyLabel}>Verified</Text>
+                                                <Text style={styles.adminVerifyValue}>{adminStats.verifiedUsers ?? adminStats.VerifiedUsers ?? 0}</Text>
                                             </View>
                                         </View>
-                                    );
-                                })}
-                            </View>
-                        )}
+                                        <View style={styles.adminVerifyItem}>
+                                            <MaterialIcons name="mark-email-unread" size={24} color="#f59e0b" />
+                                            <View>
+                                                <Text style={styles.adminVerifyLabel}>Unverified</Text>
+                                                <Text style={styles.adminVerifyValue}>{adminStats.unverifiedUsers ?? adminStats.UnverifiedUsers ?? 0}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                                <Text style={styles.adminQuickTitle}>Quick Administrative Access</Text>
+                                <TouchableOpacity style={styles.adminQuickCard} onPress={() => navigation.navigate("AdminUsers")} activeOpacity={0.8}>
+                                    <View style={styles.adminQuickIconWrap}>
+                                        <MaterialIcons name="manage-accounts" size={32} color="#6366f1" />
+                                    </View>
+                                    <View style={styles.adminQuickBody}>
+                                        <Text style={styles.adminQuickCardTitle}>Manage Users & Access</Text>
+                                        <Text style={styles.adminQuickCardSub}>View details, toggle status, and batch delete accounts.</Text>
+                                    </View>
+                                    <MaterialIcons name="arrow-forward" size={24} color="#64748b" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.adminQuickCard} onPress={() => navigation.navigate("AdminProjects")} activeOpacity={0.8}>
+                                    <View style={[styles.adminQuickIconWrap, { backgroundColor: "rgba(59, 130, 246, 0.2)" }]}>
+                                        <MaterialIcons name="dashboard-customize" size={32} color="#3b82f6" />
+                                    </View>
+                                    <View style={styles.adminQuickBody}>
+                                        <Text style={styles.adminQuickCardTitle}>Monitor Global Projects</Text>
+                                        <Text style={styles.adminQuickCardSub}>Preview prompts, review generated code, manage workspaces.</Text>
+                                    </View>
+                                    <MaterialIcons name="arrow-forward" size={24} color="#64748b" />
+                                </TouchableOpacity>
                             </>
-                        )}
+                        ) : null}
                     </>
                 ) : (
                     <>
@@ -535,6 +566,52 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: "#1e293b", // slate-800
     },
+    adminTitleRow: { marginBottom: 4 },
+    adminScreenTitle: { fontSize: 24, fontWeight: "bold", color: "#fff" },
+    adminSubtitle: { fontSize: 14, color: "#94a3b8", marginBottom: 20 },
+    adminErrorBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, backgroundColor: "rgba(239,68,68,0.15)", borderRadius: 12, marginBottom: 16 },
+    adminErrorText: { color: "#f87171", fontSize: 14 },
+    adminLoadingWrap: { paddingVertical: 48, alignItems: "center" },
+    adminLoadingText: { color: "#94a3b8", marginTop: 12 },
+    adminStatGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 20 },
+    adminStatCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 16, width: "48%", gap: 12, backgroundColor: "#1e293b" },
+    adminStatIconWrap: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    adminStatBody: { flex: 1 },
+    adminStatTitle: { fontSize: 12, color: "#94a3b8" },
+    adminStatValue: { fontSize: 20, fontWeight: "bold", color: "#fff" },
+    adminChartCard: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: "#334155", overflow: "hidden" },
+    adminChartTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
+    adminChartTitle: { fontSize: 16, fontWeight: "bold", color: "#fff" },
+    adminChartEmpty: { fontSize: 14, color: "#64748b", textAlign: "center", paddingVertical: 16 },
+    adminAreaChartWrap: { marginTop: 4, marginBottom: 4, overflow: "hidden" },
+    adminDonutWrap: { alignItems: "center", marginVertical: 8 },
+    adminPieLegend: { gap: 12 },
+    adminPieRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    adminPieDot: { width: 12, height: 12, borderRadius: 6 },
+    adminPieLabel: { flex: 1, fontSize: 14, color: "#e2e8f0" },
+    adminPieValue: { fontSize: 14, fontWeight: "600", color: "#94a3b8" },
+    adminTokenBox: { backgroundColor: "rgba(99, 102, 241, 0.2)", borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: "rgba(99, 102, 241, 0.4)" },
+    adminTokenTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", marginBottom: 4 },
+    adminTokenSub: { fontSize: 12, color: "#a5b4fc", marginBottom: 16 },
+    adminTokenRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
+    adminTokenUsedNum: { fontSize: 28, fontWeight: "bold", color: "#fff" },
+    adminTokenRemNum: { fontSize: 18, fontWeight: "bold", color: "#c7d2fe" },
+    adminTokenLabel: { fontSize: 11, color: "#a5b4fc" },
+    adminProgressBarBg: { height: 10, backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 5, overflow: "hidden" },
+    adminProgressBarFill: { height: "100%", backgroundColor: "#6366f1", borderRadius: 5 },
+    adminProgressLegend: { fontSize: 11, color: "#a5b4fc", marginTop: 6 },
+    adminVerificationBox: { backgroundColor: "#1e293b", borderRadius: 16, padding: 20, marginBottom: 24 },
+    adminVerifyTitle: { fontSize: 12, fontWeight: "bold", color: "#64748b", marginBottom: 12, textTransform: "uppercase" },
+    adminVerifyRow: { flexDirection: "row", justifyContent: "space-between" },
+    adminVerifyItem: { flexDirection: "row", alignItems: "center", gap: 12 },
+    adminVerifyLabel: { fontSize: 12, color: "#64748b" },
+    adminVerifyValue: { fontSize: 18, fontWeight: "bold", color: "#fff" },
+    adminQuickTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", marginBottom: 12 },
+    adminQuickCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 12, gap: 16, borderWidth: 1, borderColor: "#334155" },
+    adminQuickIconWrap: { width: 56, height: 56, borderRadius: 12, backgroundColor: "rgba(99, 102, 241, 0.2)", alignItems: "center", justifyContent: "center" },
+    adminQuickBody: { flex: 1 },
+    adminQuickCardTitle: { fontSize: 16, fontWeight: "bold", color: "#fff" },
+    adminQuickCardSub: { fontSize: 13, color: "#94a3b8", marginTop: 4 },
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 24,

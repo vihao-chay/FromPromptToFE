@@ -12,11 +12,13 @@ import {
 import organizationService from "../../services/organizationService";
 import Button from "../../components/Button";
 import { useToast } from "../../context/ToastContext";
+import { useAuth } from "../../context/AuthContext";
 
 const PLANS = ["Personal", "Team"];
 
 export default function NewOrganizationScreen({ navigation, route }) {
     const fromOnboarding = route?.params?.fromOnboarding ?? false;
+    const { logout } = useAuth();
     const [name, setName] = useState("");
     const [plan, setPlan] = useState("Personal");
     const [submitting, setSubmitting] = useState(false);
@@ -93,12 +95,16 @@ export default function NewOrganizationScreen({ navigation, route }) {
                     loading={submitting}
                     style={styles.submitBtn}
                 />
-                {!fromOnboarding && (
+                {!fromOnboarding ? (
                     <TouchableOpacity
                         style={styles.cancelBtn}
                         onPress={() => navigation.replace("Dashboard")}
                     >
                         <Text style={styles.cancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+                        <Text style={styles.logoutText}>Logout</Text>
                     </TouchableOpacity>
                 )}
             </ScrollView>
@@ -182,6 +188,16 @@ const styles = StyleSheet.create({
     },
     cancelText: {
         color: "#94a3b8",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    logoutBtn: {
+        paddingVertical: 14,
+        alignItems: "center",
+        marginTop: 8,
+    },
+    logoutText: {
+        color: "#f87171",
         fontSize: 14,
         fontWeight: "600",
     },
