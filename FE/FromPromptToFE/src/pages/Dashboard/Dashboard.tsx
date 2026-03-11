@@ -5,6 +5,7 @@ import { ProjectStatus, Project, Activity } from '../../types';
 import organizationService from '../../services/organizationService';
 import projectService from '../../services/projectService';
 import organizationMemberService from '../../services/oganizationMemberService';
+import changeLogService from '../../services/changeLogService';
 
 interface Organization {
   id: string;
@@ -60,6 +61,7 @@ const htmlForPreview = (raw: string): string => {
 const mapApiProjectToProject = (p: {
   id?: string; Id?: string; name?: string; Name?: string; projectType?: string;
   createdAt?: string; CreatedAt?: string; generatedHtml?: string; GeneratedHtml?: string;
+  organizationId?: string; OrganizationId?: string;
 }): Project => {
   const status = (p.projectType === 'Generated' || p.projectType === 'Completed') ? ProjectStatus.COMPLETED : (p.projectType === 'Draft' ? ProjectStatus.DRAFT : ProjectStatus.ACTIVE);
   const created = p.createdAt ?? p.CreatedAt ?? '';
@@ -71,6 +73,7 @@ const mapApiProjectToProject = (p: {
     createdAt: dateStr,
     imageUrl: PLACEHOLDER_IMAGE,
     generatedHtml: p.generatedHtml ?? p.GeneratedHtml ?? undefined,
+    organizationId: p.organizationId ?? p.OrganizationId ?? undefined,
   };
 };
 
@@ -82,9 +85,9 @@ const Dashboard: React.FC = () => {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const itemsPerPage = 4;
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<{ type: 'org'; id: string; name: string; plan?: string } | { type: 'project'; id: string; name: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ type: 'org'; id: string; name: string; plan?: string } | { type: 'project'; id: string; name: string; organizationId?: string } | null>(null);
   const [editName, setEditName] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'org'; id: string; name: string } | { type: 'project'; id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'org'; id: string; name: string } | { type: 'project'; id: string; name: string; organizationId?: string } | null>(null);
   const [confirmOrg, setConfirmOrg] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
@@ -138,12 +141,13 @@ const Dashboard: React.FC = () => {
     const orgIds = organizations.map((o) => o.id);
     Promise.all(orgIds.map((id) => projectService.getAll({ organizationId: id, pageIndex: 1, pageSize: 100 })))
       .then((results) => {
-        type RawProject = { id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string; generatedHtml?: string; GeneratedHtml?: string };
+        type RawProject = { id?: string; Id?: string; name?: string; Name?: string; projectType?: string; createdAt?: string; CreatedAt?: string; generatedHtml?: string; GeneratedHtml?: string; organizationId?: string; OrganizationId?: string };
         const raw: RawProject[] = [];
-        results.forEach((res) => {
+        results.forEach((res, idx) => {
+          const orgId = orgIds[idx];
           const c = res.data?.content as { TotalItems?: RawProject[]; totalItems?: RawProject[] } | undefined;
           const items = Array.isArray(c?.TotalItems) ? c.TotalItems : Array.isArray(c?.totalItems) ? c.totalItems : [];
-          items.forEach((p) => raw.push(p));
+          items.forEach((p) => raw.push({ ...p, organizationId: p.organizationId ?? p.OrganizationId ?? orgId, OrganizationId: p.OrganizationId ?? orgId }));
         });
         raw.sort((a, b) => {
           const t1 = a.createdAt ?? a.CreatedAt ?? '';
@@ -186,10 +190,13 @@ const Dashboard: React.FC = () => {
     if (editTarget.type === 'org') {
       organizationService.update(editTarget.id, editName.trim(), editTarget.plan ?? '').then(() => {
         setOrganizations((prev) => prev.map((o) => (o.id === editTarget.id ? { ...o, name: editName.trim() } : o)));
+        changeLogService.create({ organizationId: editTarget.id, entityType: 'Organization', entityId: editTarget.id, action: 'Update' }).catch(() => {});
       }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     } else {
+      const orgId = editTarget.organizationId ?? allProjects.find((p) => p.id === editTarget.id)?.organizationId;
       projectService.update(editTarget.id, { name: editName.trim() }).then(() => {
         setAllProjects((prev) => prev.map((p) => (p.id === editTarget.id ? { ...p, name: editName.trim() } : p)));
+        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: editTarget.id, action: 'Update' }).catch(() => {});
       }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     }
   };
@@ -199,10 +206,13 @@ const Dashboard: React.FC = () => {
     if (deleteTarget.type === 'org') {
       organizationService.delete(deleteTarget.id).then(() => {
         setOrganizations((prev) => prev.filter((o) => o.id !== deleteTarget.id));
+        changeLogService.create({ organizationId: deleteTarget.id, entityType: 'Organization', entityId: deleteTarget.id, action: 'Delete' }).catch(() => {});
       }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     } else {
+      const orgId = deleteTarget.organizationId ?? allProjects.find((p) => p.id === deleteTarget.id)?.organizationId;
       projectService.delete(deleteTarget.id).then(() => {
         setAllProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: deleteTarget.id, action: 'Delete' }).catch(() => {});
       }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     }
   };

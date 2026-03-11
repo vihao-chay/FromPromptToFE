@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 const STATUS = { checking: "checking", noOrg: "noOrg", noProject: "noProject", ready: "ready", error: "error", unauthorized: "unauthorized" };
 
 export default function OnboardingCheckScreen({ navigation }) {
-    const { logout } = useAuth();
+    const { logout, user: authUser } = useAuth();
     const [status, setStatus] = useState(STATUS.checking);
     const [firstOrgId, setFirstOrgId] = useState(null);
 
@@ -24,16 +24,21 @@ export default function OnboardingCheckScreen({ navigation }) {
                 }
                 const orgs = await getMyOrganizations(String(userId));
                 if (cancelled) return;
+                const isAdmin = (authUser?.role ?? authUser?.Role ?? "") === "Admin";
                 if (!orgs || orgs.length === 0) {
+                    if (isAdmin) {
+                        setStatus(STATUS.ready);
+                        return;
+                    }
                     setStatus(STATUS.noOrg);
                     return;
                 }
-                const orgId = orgs[0].organizationId;
+                const orgId = orgs[0].organizationId ?? orgs[0].OrganizationId;
                 setFirstOrgId(orgId);
                 const projects = await projectService.getAll({ organizationId: orgId, pageIndex: 1, pageSize: 1 });
                 if (cancelled) return;
                 const hasProjects = Array.isArray(projects) && projects.length > 0;
-                if (!hasProjects) {
+                if (!hasProjects && !isAdmin) {
                     setStatus(STATUS.noProject);
                     return;
                 }
@@ -61,7 +66,7 @@ export default function OnboardingCheckScreen({ navigation }) {
         };
         check();
         return () => { cancelled = true; };
-    }, []);
+    }, [authUser?.role, authUser?.Role]);
 
     useEffect(() => {
         if (status !== STATUS.checking) return;
@@ -88,6 +93,9 @@ export default function OnboardingCheckScreen({ navigation }) {
             <View style={styles.container}>
                 <ActivityIndicator size="large" color="#2563eb" />
                 <Text style={styles.text}>Checking...</Text>
+                <Text style={[styles.retry, { marginTop: 24 }]} onPress={() => logout()}>
+                    Logout
+                </Text>
             </View>
         );
     }

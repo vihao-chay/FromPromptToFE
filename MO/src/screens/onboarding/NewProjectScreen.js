@@ -18,7 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function NewProjectScreen({ navigation, route }) {
     const organizationIdParam = route?.params?.organizationId;
     const fromOnboarding = route?.params?.fromOnboarding ?? false;
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [organizationId, setOrganizationId] = useState(organizationIdParam ?? "");
     const [organizations, setOrganizations] = useState([]);
     const [projectName, setProjectName] = useState("");
@@ -103,6 +103,9 @@ export default function NewProjectScreen({ navigation, route }) {
                 >
                     <Text style={styles.linkText}>Create an organization first</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+                    <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -161,6 +164,11 @@ export default function NewProjectScreen({ navigation, route }) {
                     loading={submitting}
                     style={styles.submitBtn}
                 />
+                {fromOnboarding ? (
+                    <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+                        <Text style={styles.logoutText}>Logout</Text>
+                    </TouchableOpacity>
+                ) : null}
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -251,5 +259,15 @@ const styles = StyleSheet.create({
     },
     submitBtn: {
         marginBottom: 12,
+    },
+    logoutBtn: {
+        paddingVertical: 14,
+        alignItems: "center",
+        marginTop: 8,
+    },
+    logoutText: {
+        color: "#f87171",
+        fontSize: 14,
+        fontWeight: "600",
     },
 });
