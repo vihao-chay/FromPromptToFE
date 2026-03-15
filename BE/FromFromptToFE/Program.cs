@@ -129,6 +129,8 @@ builder.Services.AddScoped<ICodeRepository, CodeRepository>();
 builder.Services.AddScoped<ICodeService, CodeService>();
 builder.Services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
 builder.Services.AddScoped<IApiSpecService, ApiSpecService>();
+builder.Services.AddScoped<IApiSpecOutputRepository, ApiSpecOutputRepository>();
+builder.Services.AddScoped<IApiSpecOutputService, ApiSpecOutputService>();
 builder.Services.AddScoped<IChangeLogRepository, ChangeLogRepository>();
 builder.Services.AddScoped<IChangeLogService, ChangeLogService>();
 

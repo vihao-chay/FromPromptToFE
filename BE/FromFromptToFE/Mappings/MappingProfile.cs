@@ -106,6 +106,12 @@ namespace FromFromptToFE.Mappings
             CreateMap<CreateChangeLogDto, ChangeLog>();
 
             CreateMap<Code, CodeDto>();
+
+            // ApiSpecOutput mappings
+            CreateMap<ApiSpecOutput, ApiSpecOutputDto>();
+            CreateMap<CreateApiSpecOutputDto, ApiSpecOutput>();
+            CreateMap<UpdateApiSpecOutputDto, ApiSpecOutput>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
         }
     }
 }
