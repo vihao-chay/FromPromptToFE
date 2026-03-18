@@ -55,8 +55,9 @@ const codeService = {
     if (params?.pageIndex != null) query.set('pageIndex', String(params.pageIndex));
     if (params?.pageSize != null) query.set('pageSize', String(params.pageSize));
     const qs = query.toString();
-    const res = await api.get<{ content: CodePagingResult }>(`/api/Code${qs ? `?${qs}` : ''}`);
-    const content = res.data?.content;
+    const res = await api.get<{ content: CodePagingResult }>(`/api/codes${qs ? `?${qs}` : ''}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content = res.data?.content as any;
     if (!content) return { totalItems: [], totalRow: 0, pageIndex: 1, pageSize: 10 };
     const items = content.totalItems ?? content.TotalItems ?? [];
     const list = Array.isArray(items) ? items.map((x: Record<string, unknown>) => normalizeCode(x)) : [];
@@ -70,7 +71,7 @@ const codeService = {
   },
 
   getById: async (id: string): Promise<CodeDto | null> => {
-    const res = await api.get<{ content: CodeDto }>(`/api/Code/${id}`);
+    const res = await api.get<{ content: CodeDto }>(`/api/codes/${id}`);
     const content = res.data?.content;
     if (!content) return null;
     return normalizeCode(content as unknown as Record<string, unknown>);

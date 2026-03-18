@@ -36,7 +36,7 @@ const changeLogService = {
     if (payload.entityId) body.entityId = payload.entityId;
     if (payload.oldValues != null) body.oldValues = payload.oldValues;
     if (payload.newValues != null) body.newValues = payload.newValues;
-    return api.post<{ content: ChangeLogDto }>('/api/ChangeLog', body);
+    return api.post<{ content: ChangeLogDto }>('/api/change-logs', body);
   },
 
   /** Get paginated changelogs from API (database). Default sort: newest first. */
@@ -63,7 +63,7 @@ const changeLogService = {
     if (!query.has('sortOrder')) query.set('sortOrder', 'desc');
     const qs = query.toString();
     return api.get<{ content: { TotalItems: ChangeLogDto[]; totalItems?: ChangeLogDto[]; TotalRow: number } }>(
-      `/api/ChangeLog${qs ? `?${qs}` : ''}`
+      `/api/change-logs${qs ? `?${qs}` : ''}`
     );
   },
 };

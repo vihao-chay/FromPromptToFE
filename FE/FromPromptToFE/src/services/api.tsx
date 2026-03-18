@@ -37,7 +37,7 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Don't clear token on 401 from /auth/me – avoids kicking user to login when RequireOnboarding calls getMe()
+            // Don't clear token on 401 from /api/auth/me – avoids kicking user to login when RequireOnboarding calls getMe()
             const url = (error.config?.url ?? "") as string;
             const isMe = url.includes("/me") || url.endsWith("me");
             if (!isMe) {

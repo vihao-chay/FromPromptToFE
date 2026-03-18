@@ -58,11 +58,11 @@ const projectService = {
     if (params?.pageSize != null) query.set('pageSize', String(params.pageSize));
     const qs = query.toString();
     return api.get<{ content: { TotalItems: ProjectDto[]; totalItems?: ProjectDto[] } }>(
-      `/api/Project${qs ? `?${qs}` : ''}`
+      `/api/projects${qs ? `?${qs}` : ''}`
     );
   },
 
-  getById: (id: string) => api.get<{ content: ProjectDto }>(`/api/Project/${id}`),
+  getById: (id: string) => api.get<{ content: ProjectDto }>(`/api/projects/${id}`),
 
   create: (payload: CreateProjectPayload) => {
     const body: Record<string, unknown> = {
@@ -75,12 +75,12 @@ const projectService = {
     if (payload.repoUrl != null) body.repoUrl = payload.repoUrl;
     if (payload.generatedTsx != null) body.generatedTsx = payload.generatedTsx;
     if (payload.generatedHtml != null) body.generatedHtml = payload.generatedHtml;
-    return api.post<{ content: ProjectDto }>('/api/Project', body);
+    return api.post<{ content: ProjectDto }>('/api/projects', body);
   },
 
-  update: (id: string, payload: UpdateProjectPayload) => api.put(`/api/Project/${id}`, payload),
+  update: (id: string, payload: UpdateProjectPayload) => api.put(`/api/projects/${id}`, payload),
 
-  delete: (id: string) => api.delete(`/api/Project/${id}`),
+  delete: (id: string) => api.delete(`/api/projects/${id}`),
 };
 
 export default projectService;

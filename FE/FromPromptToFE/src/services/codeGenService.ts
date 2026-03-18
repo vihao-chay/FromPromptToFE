@@ -16,7 +16,7 @@ export interface GenerateCodeResponse {
 
 export async function generateCode(request: GenerateCodeRequest): Promise<GenerateCodeResponse> {
   try {
-    const res = await api.post<{ content?: GenerateCodeResponse }>('/api/CodeGen', {
+    const res = await api.post<{ content?: GenerateCodeResponse }>('/api/code-gen', {
       systemPrompt: request.systemPrompt,
       erdSchema: request.erdSchema,
       apiSpec: request.apiSpec,
@@ -24,9 +24,11 @@ export async function generateCode(request: GenerateCodeRequest): Promise<Genera
     });
     const content = res.data?.content;
     if (!content) throw new Error('No content in response');
-    const tsx = (content as { tsx?: string }).tsx ?? (content as { Tsx?: string }).Tsx ?? '';
-    const html = (content as { html?: string }).html ?? (content as { Html?: string }).Html ?? '';
-    const steps = Array.isArray((content as { steps?: string[] }).steps) ? (content as { steps: string[] }).steps : Array.isArray((content as { Steps?: string[] }).Steps) ? (content as { Steps: string[] }).Steps : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = content as any;
+    const tsx = c.tsx ?? c.Tsx ?? '';
+    const html = c.html ?? c.Html ?? '';
+    const steps = Array.isArray(c.steps) ? c.steps : Array.isArray(c.Steps) ? c.Steps : [];
     // If BE returned error (e.g. Gemini not configured), try direct Gemini from FE when key is in .env
     if (tsx.startsWith('// Error') && import.meta.env.VITE_GEMINI_API_KEY) {
       const out = await generateCodeFromInputs({

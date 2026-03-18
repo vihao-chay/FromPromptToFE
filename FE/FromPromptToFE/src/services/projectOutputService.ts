@@ -39,7 +39,7 @@ const projectOutputService = {
       sortOrder: 'desc',
     });
     return api.get<{ content: { TotalItems?: ProjectOutputDto[]; totalItems?: ProjectOutputDto[] } }>(
-      `/api/ProjectOutput?${params.toString()}`
+      `/api/project-outputs?${params.toString()}`
     ).then((res) => {
       const content = getContent(res.data) as { TotalItems?: ProjectOutputDto[]; totalItems?: ProjectOutputDto[] } | undefined;
       const list = Array.isArray(content?.TotalItems) ? content.TotalItems : Array.isArray(content?.totalItems) ? content.totalItems : [];
@@ -69,7 +69,7 @@ const projectOutputService = {
     if (payload.promptHistory != null) body.promptHistory = payload.promptHistory;
     if (payload.generatedPreviewImage != null) body.generatedPreviewImage = payload.generatedPreviewImage;
     return api.post<{ content: unknown }>(
-      `/api/ProjectOutput/save?projectId=${encodeURIComponent(projectId)}`,
+      `/api/project-outputs/save?projectId=${encodeURIComponent(projectId)}`,
       body
     );
   },

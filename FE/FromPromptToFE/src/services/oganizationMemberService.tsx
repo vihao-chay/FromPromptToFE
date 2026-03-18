@@ -2,19 +2,19 @@ import api from "./api"
 
 const organizationMemberService = {
     getAll: (organizationId: string) => {
-        return api.get(`/api/OrganizationMember/org/${organizationId}`)
+        return api.get(`/api/organization-members/by-org/${organizationId}`)
     },
     getProjectsByMemberId: (memberId: string) => {
-        return api.get(`/api/OrganizationMember/user/${memberId}`)
+        return api.get(`/api/organization-members/by-user/${memberId}`)
     },
     addMember: (organizationId: string, email: string, role: string) => {
-        return api.post(`/api/OrganizationMember/invite`, { organizationId, email, role })
+        return api.post(`/api/organization-members/invite`, { organizationId, email, role })
     },
     removeMember: (memberId: string) => {
-        return api.delete(`/api/OrganizationMember/${memberId}`)
+        return api.delete(`/api/organization-members/${memberId}`)
     },
     updateMember: (memberId: string, role: string) => {
-        return api.put(`/api/OrganizationMember/${memberId}/role`, { role })
+        return api.put(`/api/organization-members/${memberId}/role`, { role })
     }
 }
 

@@ -41,36 +41,36 @@ const authService = {
   /** Pass token (e.g. after OAuth) to send it explicitly so the request is authenticated. */
   getMe: (token?: string) => {
     return api.get<{ content: UserDto }>(
-      "/auth/me",
+      "/api/auth/me",
       token ? { headers: { Authorization: `Bearer ${token}` } } : {},
     );
   },
   updateProfile: (payload: { name?: string; avatarUrl?: string }) => {
-    return api.patch<{ content: UserDto }>("/auth/me", payload);
+    return api.patch<{ content: UserDto }>("/api/auth/me", payload);
   },
   login: (email: string, password: string) => {
-    return api.post("/auth/login", { email, password });
+    return api.post("/api/auth/login", { email, password });
   },
   loginWithGoogle: (idToken: string) => {
-    return api.post("/auth/google", { idToken });
+    return api.post("/api/auth/google", { idToken });
   },
   loginWithGitHub: (code: string) => {
-    return api.post("/auth/github", { code });
+    return api.post("/api/auth/github", { code });
   },
   register: (email: string, password: string) => {
-    return api.post("/auth/register", { email, password });
+    return api.post("/api/auth/register", { email, password });
   },
   verifyEmail: (token: string) => {
-    return api.post("/auth/verify-email", { token });
+    return api.post("/api/auth/verify-email", { token });
   },
   resendVerificationEmail: (email: string) => {
-    return api.post("/auth/resend-verification", { email });
+    return api.post("/api/auth/resend-verification", { email });
   },
   forgotPassword: (email: string) => {
-    return api.post("/auth/forgot-password", { email });
+    return api.post("/api/auth/forgot-password", { email });
   },
   resetPassword: (token: string, newPassword: string) => {
-    return api.post("/auth/reset-password", { token, newPassword });
+    return api.post("/api/auth/reset-password", { token, newPassword });
   },
   changePassword: (oldPassword: string | null, newPassword: string) => {
     const body: { OldPassword?: string; NewPassword: string } = {
@@ -78,29 +78,30 @@ const authService = {
     };
     if (oldPassword != null && oldPassword !== "")
       body.OldPassword = oldPassword;
-    return api.post("/auth/change-password", body);
+    return api.post("/api/auth/change-password", body);
   },
   refreshToken: (refreshToken: string) => {
-    return api.post("/auth/refresh-token", { refreshToken });
+    return api.post("/api/auth/refresh-token", { refreshToken });
   },
   disconnectGitHub: () => {
-    return api.delete("/auth/github");
+    return api.delete("/api/auth/github");
   },
   linkGitHub: (code: string) => {
-    return api.post<{ content: UserDto }>("/auth/github/link", { code });
+    return api.post<{ content: UserDto }>("/api/auth/github/link", { code });
   },
 };
 
 export async function getMyOrganizations(userId: string) {
   const res = await api.get<{ content: UserOrganizationDto[] }>(
-    `/api/OrganizationMember/user/${userId}`,
+    `/api/organization-members/by-user/${userId}`,
   );
   const content = res.data?.content;
   const raw = Array.isArray(content)
     ? content
     : ((content as unknown as { TotalItems?: UserOrganizationDto[] })
       ?.TotalItems ?? []);
-  return (Array.isArray(raw) ? raw : []).map((o: Record<string, unknown>) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (Array.isArray(raw) ? raw : []).map((o: any) => ({
     organizationId: String(o.organizationId ?? o.OrganizationId ?? ""),
     organizationName: String(o.organizationName ?? o.OrganizationName ?? ""),
     organizationPlan:

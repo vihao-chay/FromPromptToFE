@@ -92,7 +92,7 @@ const Repositories: React.FC = () => {
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-12 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500 mb-4">code</span>
-          <p className="text-slate-600 dark:text-slate-400">No code records yet. Data is from API /api/Code (code table).</p>
+          <p className="text-slate-600 dark:text-slate-400">No code records yet. Data is from API /api/codes (code table).</p>
           <button onClick={() => load()} className="mt-4 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90">
             Refresh
           </button>
