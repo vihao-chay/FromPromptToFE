@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FromFromptToFE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/organizations")]
     [Authorize]
     public class OrganizationController : ControllerBase
     {

@@ -15,7 +15,7 @@ const projectService = {
         if (params.pageIndex != null) q.set("pageIndex", String(params.pageIndex));
         if (params.pageSize != null) q.set("pageSize", String(params.pageSize));
         const qs = q.toString();
-        const response = await fetchApiWithAuth(`/api/Project${qs ? `?${qs}` : ""}`, { method: "GET" });
+        const response = await fetchApiWithAuth(`/api/projects${qs ? `?${qs}` : ""}`, { method: "GET" });
         if (!response.ok) {
             const text = await response.text();
             let msg = "Failed to load projects.";
@@ -32,7 +32,7 @@ const projectService = {
     },
 
     getById: async (id) => {
-        const response = await fetchApiWithAuth(`/api/Project/${id}`, { method: "GET" });
+        const response = await fetchApiWithAuth(`/api/projects/${id}`, { method: "GET" });
         if (!response.ok) throw new Error("Project not found.");
         const data = await response.json();
         return getContent(data) ?? data;
@@ -44,7 +44,7 @@ const projectService = {
             name: payload.name,
             projectType: payload.projectType ?? "Draft",
         };
-        const response = await fetchApiWithAuth("/api/Project", {
+        const response = await fetchApiWithAuth("/api/projects", {
             method: "POST",
             body: JSON.stringify(body),
         });

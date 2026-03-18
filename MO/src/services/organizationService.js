@@ -8,7 +8,7 @@ function getContent(data) {
 
 const organizationService = {
     getAll: async () => {
-        const response = await fetchApiWithAuth("/api/Organization", { method: "GET" });
+        const response = await fetchApiWithAuth("/api/organizations", { method: "GET" });
         if (!response.ok) {
             const text = await response.text();
             let msg = "Failed to load organizations.";
@@ -25,14 +25,14 @@ const organizationService = {
     },
 
     getById: async (id) => {
-        const response = await fetchApiWithAuth(`/api/Organization/${id}`, { method: "GET" });
+        const response = await fetchApiWithAuth(`/api/organizations/${id}`, { method: "GET" });
         if (!response.ok) throw new Error("Organization not found.");
         const data = await response.json();
         return getContent(data) ?? data;
     },
 
     create: async (name, plan = "Personal") => {
-        const response = await fetchApiWithAuth("/api/Organization", {
+        const response = await fetchApiWithAuth("/api/organizations", {
             method: "POST",
             body: JSON.stringify({ name: name.trim(), plan }),
         });

@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace FromFromptToFE.Controllers
 {
-    [Route("auth")]
+    [Route("api/auth")]
     [ApiController]
     public class AuthController : ControllerBase
     {

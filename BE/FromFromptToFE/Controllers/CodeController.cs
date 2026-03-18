@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FromFromptToFE.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/codes")]
 [Authorize]
 public class CodeController : ControllerBase
 {

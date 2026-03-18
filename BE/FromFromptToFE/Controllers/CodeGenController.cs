@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FromFromptToFE.Controllers;
 
 [ApiController]
-[Route("api/CodeGen")]
+[Route("api/code-gen")]
 [AllowAnonymous]
 public class CodeGenController : ControllerBase
 {

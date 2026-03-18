@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace FromFromptToFE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/project-outputs")]
     public class ProjectOutputController : ControllerBase
     {
         private readonly IProjectOutputService _service;

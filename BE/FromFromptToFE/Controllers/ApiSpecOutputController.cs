@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FromFromptToFE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/api-spec-outputs")]
     public class ApiSpecOutputController : ControllerBase
     {
         private readonly IApiSpecOutputService _service;

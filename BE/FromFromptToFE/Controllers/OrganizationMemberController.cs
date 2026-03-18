@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace FromFromptToFE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/organization-members")]
     public class OrganizationMemberController : ControllerBase
     {
         private readonly IOrganizationMemberService _service;
@@ -20,7 +20,7 @@ namespace FromFromptToFE.Controllers
             _service = service;
         }
 
-        [HttpGet("org/{organizationId}")]
+        [HttpGet("by-org/{organizationId}")]
         public async Task<IActionResult> GetMembers(Guid organizationId, [FromQuery] MemberFilterDto filter)
         {
             var result = await _service.GetMembersByOrgIdAsync(organizationId, filter);
@@ -93,7 +93,7 @@ namespace FromFromptToFE.Controllers
         }
 
         /// <summary>Get organizations for the current user (from JWT). Route userId is ignored; always uses DB for JWT user.</summary>
-        [HttpGet("user/{userId}")]
+        [HttpGet("by-user/{userId}")]
         public async Task<IActionResult> GetMyOrganizations(Guid userId)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;

@@ -90,7 +90,7 @@ async function fetchApi(path, options) {
     }
 }
 
-/** Authenticated API: adds Bearer token from AsyncStorage. Use for /auth/me, /api/Organization, etc. */
+/** Authenticated API: adds Bearer token from AsyncStorage. Use for /api/auth/me, /api/organizations, etc. */
 export async function fetchApiWithAuth(path, options = {}) {
     const token = await AsyncStorage.getItem("token");
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
@@ -100,7 +100,7 @@ export async function fetchApiWithAuth(path, options = {}) {
 
 /** Get current user (requires token). Returns normalized user object. */
 export const getMe = async () => {
-    const response = await fetchApiWithAuth("/auth/me", { method: "GET" });
+    const response = await fetchApiWithAuth("/api/auth/me", { method: "GET" });
     if (!response.ok) throw new Error(await getErrorMessage(response, "Get profile"));
     const data = await response.json();
     const content = data.content ?? data.Content ?? data;
@@ -109,7 +109,7 @@ export const getMe = async () => {
 
 /** Update profile (name, avatarUrl). Returns updated user. */
 export const updateProfile = async (payload) => {
-    const response = await fetchApiWithAuth("/auth/me", {
+    const response = await fetchApiWithAuth("/api/auth/me", {
         method: "PATCH",
         body: JSON.stringify(payload),
     });
@@ -123,7 +123,7 @@ export const updateProfile = async (payload) => {
 export const changePassword = async (oldPassword, newPassword) => {
     const body = { NewPassword: newPassword };
     if (oldPassword != null && oldPassword !== "") body.OldPassword = oldPassword;
-    const response = await fetchApiWithAuth("/auth/change-password", {
+    const response = await fetchApiWithAuth("/api/auth/change-password", {
         method: "POST",
         body: JSON.stringify(body),
     });
@@ -133,7 +133,7 @@ export const changePassword = async (oldPassword, newPassword) => {
 
 /** Get organizations the user belongs to (by userId). Requires auth. */
 export async function getMyOrganizations(userId) {
-    const response = await fetchApiWithAuth(`/api/OrganizationMember/user/${userId}`, { method: "GET" });
+    const response = await fetchApiWithAuth(`/api/organization-members/by-user/${userId}`, { method: "GET" });
     if (!response.ok) throw new Error(await getErrorMessage(response, "Get organizations"));
     const data = await response.json();
     const content = data.content ?? data.Content;
@@ -151,9 +151,9 @@ export async function getMyOrganizations(userId) {
 export const login = async (email, password) => {
     try {
         const baseUrl = getAPIUrl();
-        console.log("[LOGIN] Connecting to:", baseUrl, "/auth/login");
+        console.log("[LOGIN] Connecting to:", baseUrl, "/api/auth/login");
 
-        const response = await fetchApi("/auth/login", {
+        const response = await fetchApi("/api/auth/login", {
             method: "POST",
             body: JSON.stringify({ Email: email, Password: password }),
         });
@@ -173,7 +173,7 @@ export const login = async (email, password) => {
 
 export const register = async (email, password) => {
     try {
-        const response = await fetchApi("/auth/register", {
+        const response = await fetchApi("/api/auth/register", {
             method: "POST",
             body: JSON.stringify({ email, password })
         });
@@ -192,7 +192,7 @@ export const register = async (email, password) => {
 
 export const verifyEmail = async (token) => {
     try {
-        const response = await fetchApi("/auth/verify-email", {
+        const response = await fetchApi("/api/auth/verify-email", {
             method: "POST",
             body: JSON.stringify({ token })
         });
@@ -211,7 +211,7 @@ export const verifyEmail = async (token) => {
 
 export const forgotPassword = async (email) => {
     try {
-        const response = await fetchApi("/auth/forgot-password", {
+        const response = await fetchApi("/api/auth/forgot-password", {
             method: "POST",
             body: JSON.stringify({ email })
         });
@@ -230,7 +230,7 @@ export const forgotPassword = async (email) => {
 
 export const resetPassword = async (token, newPassword) => {
     try {
-        const response = await fetchApi("/auth/reset-password", {
+        const response = await fetchApi("/api/auth/reset-password", {
             method: "POST",
             body: JSON.stringify({ token, newPassword })
         });
@@ -249,9 +249,9 @@ export const resetPassword = async (token, newPassword) => {
 
 export const googleLogin = async (idToken) => {
     try {
-        console.log("[GOOGLE LOGIN] Connecting to:", getAPIUrl(), "/auth/google");
+        console.log("[GOOGLE LOGIN] Connecting to:", getAPIUrl(), "/api/auth/google");
 
-        const response = await fetchApi("/auth/google", {
+        const response = await fetchApi("/api/auth/google", {
             method: "POST",
             body: JSON.stringify({ idToken }),
         });

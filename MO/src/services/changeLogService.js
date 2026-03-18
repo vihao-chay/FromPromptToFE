@@ -1,7 +1,7 @@
 import { fetchApiWithAuth } from "./authService";
 
 /**
- * Change log API – same as FE: GET /api/ChangeLog (paged, sort by CreatedAt desc).
+ * Change log API – same as FE: GET /api/change-logs (paged, sort by CreatedAt desc).
  * Requires auth (Bearer token).
  */
 const changeLogService = {
@@ -18,7 +18,7 @@ const changeLogService = {
         else q.set("sortOrder", "desc");
         if (params.pageIndex != null) q.set("pageIndex", String(params.pageIndex));
         if (params.pageSize != null) q.set("pageSize", String(params.pageSize));
-        const path = `/api/ChangeLog${q.toString() ? `?${q.toString()}` : ""}`;
+        const path = `/api/change-logs${q.toString() ? `?${q.toString()}` : ""}`;
         const response = await fetchApiWithAuth(path, { method: "GET" });
         if (!response.ok) {
             const text = await response.text();

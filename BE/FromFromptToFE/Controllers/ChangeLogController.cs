@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace FromFromptToFE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/change-logs")]
     [Authorize]
     public class ChangeLogController : ControllerBase
     {

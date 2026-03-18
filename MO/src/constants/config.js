@@ -12,13 +12,13 @@
  * Set API_URL_OVERRIDE = null và đổi MACHINE_IP cho đúng máy bạn.
  */
 
-const MACHINE_IP = "192.168.1.4";
+const MACHINE_IP = "192.168.1.120";
 
 /** npx expo start --web → dùng localhost:5274 giống FE */
 const USE_LOCALHOST_FOR_WEB = false;
 
 /** Tunnel: dùng URL cố định (chạy localtunnel với --subdomain fptfe). Set null để dùng IP (REAL_DEVICE). */
-const API_URL_OVERRIDE = "https://fptfe5274.loca.lt";
+const API_URL_OVERRIDE = null;
 
 export const API_CONFIG = {
     // For Android Emulator

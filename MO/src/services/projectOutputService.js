@@ -13,7 +13,7 @@ const projectOutputService = {
         if (params.pageSize != null) q.set("pageSize", String(params.pageSize));
         if (params.sortBy) q.set("sortBy", params.sortBy);
         if (params.sortOrder) q.set("sortOrder", params.sortOrder);
-        const response = await fetchApiWithAuth(`/api/ProjectOutput?${q.toString()}`, { method: "GET" });
+        const response = await fetchApiWithAuth(`/api/project-outputs?${q.toString()}`, { method: "GET" });
         if (!response.ok) {
             const text = await response.text();
             let msg = "Failed to load outputs.";
@@ -32,7 +32,7 @@ const projectOutputService = {
     },
 
     getById: async (outputId) => {
-        const response = await fetchApiWithAuth(`/api/ProjectOutput/${outputId}`, { method: "GET" });
+        const response = await fetchApiWithAuth(`/api/project-outputs/${outputId}`, { method: "GET" });
         if (!response.ok) {
             const text = await response.text();
             let msg = "Failed to load output.";
