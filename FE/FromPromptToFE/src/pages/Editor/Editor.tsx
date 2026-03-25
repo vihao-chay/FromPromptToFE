@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { generateCode } from "../../services/codeGenService";
 import organizationService from "../../services/organizationService";
 import projectService, { getContent } from "../../services/projectService";
@@ -1403,13 +1405,24 @@ const Editor: React.FC = () => {
                       </Link>
                     </div>
                   </div>
-                  <pre className="flex-1 min-h-0 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
-                    {activeCodeTab === "tsx"
-                      ? generatedTsx ||
-                      "// Enter a prompt and click Send to generate TSX + HTML code."
-                      : generatedHtml ||
-                      "<!-- Enter a prompt and click Send to generate code. -->"}
-                  </pre>
+                  <div className="flex-1 min-h-0 overflow-auto bg-[#0d1117] custom-scrollbar">
+                    <SyntaxHighlighter
+                      language={activeCodeTab === "tsx" ? "tsx" : "html"}
+                      style={vscDarkPlus}
+                      customStyle={{
+                        margin: 0,
+                        padding: '1rem',
+                        background: 'transparent',
+                        fontSize: '0.875rem',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                      }}
+                      showLineNumbers={true}
+                    >
+                      {activeCodeTab === "tsx"
+                        ? generatedTsx || "// Enter a prompt and click Send to generate TSX + HTML code."
+                        : generatedHtml || "<!-- Enter a prompt and click Send to generate TSX + HTML code. -->"}
+                    </SyntaxHighlighter>
+                  </div>
                 </div>
               )}
 

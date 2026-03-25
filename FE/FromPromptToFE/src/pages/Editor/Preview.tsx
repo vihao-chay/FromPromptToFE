@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { generateCode } from '../../services/geminiService';
 
 const Preview: React.FC = () => {
@@ -81,8 +83,23 @@ const Preview: React.FC = () => {
               <span className="material-symbols-outlined text-sm">content_copy</span> Copy
             </button>
           </div>
-          <div className="flex-1 overflow-auto custom-scrollbar p-4 font-mono text-sm leading-relaxed text-slate-300 whitespace-pre">
-            {activeFile === 'index.tsx' ? generatedTsx : (generatedHtml || '<!-- No HTML generated. Run from Editor to get TSX + HTML. -->')}
+          <div className="flex-1 overflow-auto bg-[#1e1e1e] custom-scrollbar">
+            <SyntaxHighlighter
+              language={activeFile === 'index.tsx' ? "tsx" : "html"}
+              style={vscDarkPlus}
+              customStyle={{
+                margin: 0,
+                padding: '1rem',
+                background: 'transparent',
+                fontSize: '0.875rem',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+              }}
+              showLineNumbers={true}
+            >
+              {activeFile === 'index.tsx'
+                ? generatedTsx || "// Generating code..."
+                : generatedHtml || ""}
+            </SyntaxHighlighter>
           </div>
         </section>
 
