@@ -59,6 +59,51 @@ const DESIGN_SYSTEM_PRESETS: Record<string, { label: string; json: string }> = {
   },
 };
 
+const PROMPT_TEMPLATES = [
+  {
+    id: "contact-form",
+    icon: "mail",
+    title: "Contact Form",
+    description: "A contact form with name, email, and message fields. Clean and modern design.",
+    prompt: "Create a responsive contact form with fields for name, email, and message. Include form validation, a submit button with hover effect, and a clean modern design using soft shadows and rounded corners.",
+  },
+  {
+    id: "hero-section",
+    icon: "web",
+    title: "Hero Section",
+    description: "A full-width hero section with headline, description, and CTA buttons.",
+    prompt: "Create a stunning hero section with a large headline, a short description paragraph, and two call-to-action buttons (primary and secondary). Use a gradient background, modern typography, and make it fully responsive.",
+  },
+  {
+    id: "product-card",
+    icon: "shopping_bag",
+    title: "Product Card",
+    description: "A grid-style product card for an e-commerce catalog with image, title, and price.",
+    prompt: "Create a product card component for an e-commerce site. Include an image placeholder area, product title, star rating (4.5 stars), price display ($29.99), and an 'Add to Cart' button. Use a card layout with subtle shadow and hover effect.",
+  },
+  {
+    id: "login-page",
+    icon: "lock",
+    title: "Login Page",
+    description: "A modern login page with email, password fields and social sign-in options.",
+    prompt: "Create a beautiful login page with email and password input fields, a 'Remember me' checkbox, a 'Forgot password?' link, a sign-in button, and social login buttons for Google and GitHub. Center everything on the page with a card layout.",
+  },
+  {
+    id: "pricing-table",
+    icon: "payments",
+    title: "Pricing Table",
+    description: "A responsive pricing comparison table with 3 tiers: Basic, Pro, and Enterprise.",
+    prompt: "Create a pricing table section with 3 tiers: Basic ($9/mo), Pro ($29/mo - highlighted as popular), and Enterprise ($99/mo). Each tier has a list of features with check/cross icons, and a 'Get Started' button. Make the Pro tier visually stand out.",
+  },
+  {
+    id: "dashboard",
+    icon: "dashboard",
+    title: "Dashboard",
+    description: "An admin dashboard layout with stats cards, a chart area, and a recent activity list.",
+    prompt: "Create an admin dashboard layout with a sidebar navigation, 4 stats cards at the top (Total Users, Revenue, Orders, Conversion Rate), a chart placeholder area, and a recent activity/transactions list below. Use a dark or modern UI theme.",
+  },
+];
+
 type OutputTab = "code" | "preview" | "tasks";
 type Device = "desktop" | "tablet" | "mobile";
 type TaskStatus = "Pending" | "Running" | "Success" | "Failed";
@@ -137,21 +182,21 @@ interface PromptHistoryItem {
 type ChatTurn =
   | { id: string; role: "user"; text: string }
   | {
+    id: string;
+    role: "assistant";
+    status: "running" | "done" | "error";
+    completedAt?: number;
+    steps?: string[];
+    tasks: {
       id: string;
-      role: "assistant";
-      status: "running" | "done" | "error";
-      completedAt?: number;
-      steps?: string[];
-      tasks: {
-        id: string;
-        label: string;
-        status: TaskStatus;
-        progress: number;
-      }[];
-      tsx?: string;
-      html?: string;
-      outputId?: string;
-    };
+      label: string;
+      status: TaskStatus;
+      progress: number;
+    }[];
+    tsx?: string;
+    html?: string;
+    outputId?: string;
+  };
 
 const Editor: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -173,6 +218,7 @@ const Editor: React.FC = () => {
   const [plusMenuSubmenu, setPlusMenuSubmenu] = useState<"design" | null>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const advancedPanelRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [popoverStyle, setPopoverStyle] = useState({ top: 0, left: 0 });
   const [outputTab, setOutputTab] = useState<OutputTab>("code");
   const [device, setDevice] = useState<Device>("desktop");
@@ -210,6 +256,43 @@ const Editor: React.FC = () => {
   >([]);
   const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
 
+  const templateScrollRef = useRef<HTMLDivElement>(null);
+  const [isTemplateDragging, setIsTemplateDragging] = useState(false);
+  const [templateStartX, setTemplateStartX] = useState(0);
+  const [templateScrollLeft, setTemplateScrollLeft] = useState(0);
+
+  const handleTemplateMouseDown = (e: React.MouseEvent) => {
+    setIsTemplateDragging(true);
+    if (templateScrollRef.current) {
+      setTemplateStartX(e.pageX - templateScrollRef.current.offsetLeft);
+      setTemplateScrollLeft(templateScrollRef.current.scrollLeft);
+    }
+  };
+
+  const handleTemplateMouseLeave = () => setIsTemplateDragging(false);
+  const handleTemplateMouseUp = () => setIsTemplateDragging(false);
+
+  const handleTemplateMouseMove = (e: React.MouseEvent) => {
+    if (!isTemplateDragging || !templateScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - templateScrollRef.current.offsetLeft;
+    const walk = (x - templateStartX) * 1.5; // Tốc độ cuộn
+    templateScrollRef.current.scrollLeft = templateScrollLeft - walk;
+  };
+
+  const handleTemplateWheel = (e: React.WheelEvent) => {
+    if (templateScrollRef.current) {
+      templateScrollRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [prompt]);
+
   const savePromptToHistory = useCallback((text: string) => {
     const t = (text || "").trim();
     if (!t) return;
@@ -221,7 +304,7 @@ const Editor: React.FC = () => {
         ...list.filter((p: PromptHistoryItem) => p.text !== t),
       ].slice(0, PROMPT_HISTORY_MAX);
       localStorage.setItem(PROMPT_HISTORY_KEY, JSON.stringify(next));
-    } catch {}
+    } catch { }
   }, []);
 
   const hasRunningTurn = chatTurns.some(
@@ -291,7 +374,7 @@ const Editor: React.FC = () => {
             .filter((s: unknown) => typeof s === "string")
             .slice(0, 4);
       }
-    } catch {}
+    } catch { }
     if (steps.length < 4) steps = STEPS_WHILE_RUNNING_EN.slice(0, 4);
     return steps;
   };
@@ -448,10 +531,10 @@ const Editor: React.FC = () => {
         prev.map((t, i) =>
           i <= 1
             ? {
-                ...t,
-                status: "Running" as TaskStatus,
-                progress: i === 0 ? 100 : 50,
-              }
+              ...t,
+              status: "Running" as TaskStatus,
+              progress: i === 0 ? 100 : 50,
+            }
             : t,
         ),
       );
@@ -459,13 +542,13 @@ const Editor: React.FC = () => {
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === "assistant"
             ? {
-                ...turn,
-                tasks: TASK_IDS.map((t, i) => ({
-                  ...t,
-                  status: i <= 1 ? "Running" : "Pending",
-                  progress: i === 0 ? 100 : 50,
-                })),
-              }
+              ...turn,
+              tasks: TASK_IDS.map((t, i) => ({
+                ...t,
+                status: i <= 1 ? "Running" : "Pending",
+                progress: i === 0 ? 100 : 50,
+              })),
+            }
             : turn,
         ),
       );
@@ -508,7 +591,7 @@ const Editor: React.FC = () => {
             "editor_last_preview_updated",
             String(Date.now()),
           );
-        } catch {}
+        } catch { }
         savePromptToHistory(userText);
         setOutputTab("code");
         const stepOutputJson = JSON.stringify(steps ?? []);
@@ -536,11 +619,11 @@ const Editor: React.FC = () => {
           setOutputSaveError(null);
           try {
             await projectOutputService.saveOutput(projectId, savePayload);
-            changeLogService.create({ entityType: "ProjectOutput", entityId: projectId, action: "Generate" }).catch(() => {});
+            changeLogService.create({ entityType: "ProjectOutput", entityId: projectId, action: "Generate" }).catch(() => { });
             if (html)
               try {
                 localStorage.setItem("project_preview_" + projectId, html);
-              } catch {}
+              } catch { }
             setOutputSaved(true);
             setTimeout(() => setOutputSaved(false), 3000);
             projectOutputService
@@ -589,7 +672,7 @@ const Editor: React.FC = () => {
                 setGeneratedTsx(latest?.generatedTsx ?? "");
                 setGeneratedHtml(latest?.generatedHtml ?? "");
               })
-              .catch(() => {});
+              .catch(() => { });
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             console.error("[ProjectOutput] save failed:", e);
@@ -606,16 +689,16 @@ const Editor: React.FC = () => {
               systemPrompt: userText,
               entitySchema: erd || undefined,
             })
-            .catch(() => {});
+            .catch(() => { });
         } else {
           organizationService
             .getAll()
             .then((res) => {
               const content = getContent(res.data) as
                 | {
-                    TotalItems?: { id?: string; Id?: string }[];
-                    totalItems?: { id?: string; Id?: string }[];
-                  }
+                  TotalItems?: { id?: string; Id?: string }[];
+                  totalItems?: { id?: string; Id?: string }[];
+                }
                 | undefined;
               const list = Array.isArray(content?.TotalItems)
                 ? content.TotalItems
@@ -635,11 +718,11 @@ const Editor: React.FC = () => {
                   .then((createRes) => {
                     const created = getContent(createRes.data) as
                       | {
-                          id?: string;
-                          Id?: string;
-                          name?: string;
-                          Name?: string;
-                        }
+                        id?: string;
+                        Id?: string;
+                        name?: string;
+                        Name?: string;
+                      }
                       | undefined;
                     const projectId = created?.id ?? created?.Id;
                     if (projectId) {
@@ -648,7 +731,7 @@ const Editor: React.FC = () => {
                       if (html)
                         try {
                           localStorage.setItem("project_preview_" + pid, html);
-                        } catch {}
+                        } catch { }
                       setSearchParams({ projectId: pid });
                     }
                   })
@@ -681,21 +764,21 @@ const Editor: React.FC = () => {
         if (projectIdFromUrl)
           projectOutputService
             .saveOutput(projectIdFromUrl, failedPayload)
-            .catch(() => {});
+            .catch(() => { });
         setOutputTab("tasks");
       }
       setChatTurns((prev) =>
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === "assistant"
             ? {
-                ...turn,
-                status: isError ? "error" : "done",
-                completedAt: isError ? undefined : Date.now(),
-                steps: steps?.length >= 4 ? steps : undefined,
-                tasks: finalTasks,
-                tsx,
-                html,
-              }
+              ...turn,
+              status: isError ? "error" : "done",
+              completedAt: isError ? undefined : Date.now(),
+              steps: steps?.length >= 4 ? steps : undefined,
+              tasks: finalTasks,
+              tsx,
+              html,
+            }
             : turn,
         ),
       );
@@ -716,16 +799,16 @@ const Editor: React.FC = () => {
         prev.map((turn) =>
           turn.id === assistantTurnId && turn.role === "assistant"
             ? {
-                ...turn,
-                status: "error",
-                tasks: TASK_IDS.map((t) => ({
-                  ...t,
-                  status: "Failed" as TaskStatus,
-                  progress: 0,
-                })),
-                tsx: errorTsx,
-                html: errorHtml,
-              }
+              ...turn,
+              status: "error",
+              tasks: TASK_IDS.map((t) => ({
+                ...t,
+                status: "Failed" as TaskStatus,
+                progress: 0,
+              })),
+              tsx: errorTsx,
+              html: errorHtml,
+            }
             : turn,
         ),
       );
@@ -802,6 +885,55 @@ const Editor: React.FC = () => {
                       HTML for you.
                     </p>
                   </div>
+                  {/* Template Prompts for Newbies */}
+                  <div className="mt-8 w-full max-w-3xl">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4 px-1">
+                      Get started with templates
+                    </p>
+
+                    {/* Đã thay ScrollContainer bằng div, bỏ snap-x */}
+                    <div
+                      ref={templateScrollRef}
+                      onMouseDown={handleTemplateMouseDown}
+                      onMouseLeave={handleTemplateMouseLeave}
+                      onMouseUp={handleTemplateMouseUp}
+                      onMouseMove={handleTemplateMouseMove}
+                      onWheel={handleTemplateWheel}
+                      className={`flex overflow-x-auto gap-4 pb-4 select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-1 ${isTemplateDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    >
+                      {PROMPT_TEMPLATES.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={(e) => {
+                            if (isTemplateDragging) e.preventDefault();
+                            else setPrompt(tpl.prompt);
+                          }}
+                          // Đã bỏ class snap-start
+                          className="group relative flex flex-col flex-shrink-0 w-[240px] sm:w-[260px] text-left rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] p-5 hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-[#232a3b] transition-all duration-300 active:scale-[0.98] shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgb(255,255,255,0.02)]"
+                        >
+                          <div className="flex items-center gap-3 mb-3 pointer-events-none">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/15 dark:group-hover:bg-primary/30 transition-colors duration-300">
+                              <span className="material-symbols-outlined text-[20px] text-primary group-hover:scale-110 transition-transform duration-300">
+                                {tpl.icon}
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+                              {tpl.title}
+                            </span>
+                          </div>
+                          <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3 pointer-events-none">
+                            {tpl.description}
+                          </p>
+                          <div className="absolute top-5 right-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-1 group-hover:translate-x-0 duration-300 pointer-events-none">
+                            <span className="material-symbols-outlined text-[18px] text-primary">
+                              arrow_forward
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               {chatTurns.map((turn, turnIndex) => {
@@ -843,13 +975,13 @@ const Editor: React.FC = () => {
                 const completedTime =
                   turn.status === "done" && turn.completedAt != null
                     ? new Date(turn.completedAt).toLocaleTimeString(
-                        lang === "vi" ? "vi-VN" : "en-US",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: lang === "en",
-                        },
-                      )
+                      lang === "vi" ? "vi-VN" : "en-US",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: lang === "en",
+                      },
+                    )
                     : "";
                 const turnOutputId = turn.outputId;
                 const isSelected =
@@ -861,78 +993,78 @@ const Editor: React.FC = () => {
                       onClick={
                         turnOutputId
                           ? () => {
-                              setSelectedOutputId(turnOutputId);
-                            }
+                            setSelectedOutputId(turnOutputId);
+                          }
                           : undefined
                       }
                       className={`max-w-[90%] rounded-2xl rounded-bl-md bg-slate-100 dark:bg-[#1c1f27] border px-4 py-3 ${turnOutputId ? "cursor-pointer hover:border-primary/40 transition-colors" : "border-slate-200 dark:border-[#282e39]"} ${isSelected ? "ring-2 ring-primary border-primary" : "border-slate-200 dark:border-[#282e39]"}`}
                     >
                       {(turn.status === "running" ||
                         turn.status === "done") && (
-                        <>
-                          <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
-                            {turn.status === "running"
-                              ? labels.generating
-                              : completedTime
-                                ? labels.completedAt(completedTime)
-                                : labels.completed}
-                          </p>
-                          <div className="space-y-4">
-                            {stepTexts
-                              .slice(0, visibleCount)
-                              .map((paragraph, i) => {
-                                const isDone =
-                                  turn.status === "done" ||
-                                  (isThisRunning && i < runningStepIndex) ||
-                                  (isThisRunning && runningStepIndex >= 4);
-                                const isCurrent =
-                                  isThisRunning &&
-                                  i === runningStepIndex &&
-                                  runningStepIndex < 4;
-                                return (
-                                  <div key={i} className="flex gap-2">
-                                    <span className="flex-shrink-0 mt-0.5">
-                                      {isDone ? (
-                                        <span
-                                          className="text-primary"
-                                          title={labels.doneTitle}
-                                        >
-                                          <span className="material-symbols-outlined text-[14px]">
-                                            check_circle
-                                          </span>
-                                        </span>
-                                      ) : (
-                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
-                                      )}
-                                    </span>
-                                    <p
-                                      className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap min-w-0 ${isCurrent ? "text-slate-700 dark:text-slate-200" : ""}`}
-                                    >
-                                      {paragraph}
-                                    </p>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                          {turn.status === "running" && (
-                            <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-[#282e39]">
-                              <span className="material-symbols-outlined text-primary text-[18px] animate-spin">
-                                progress_activity
-                              </span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400">
-                                {labels.processing}
-                              </span>
-                            </div>
-                          )}
-                          {turn.status === "done" && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
-                              {isSelected
-                                ? labels.viewingThis
-                                : labels.viewCode}
+                          <>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                              {turn.status === "running"
+                                ? labels.generating
+                                : completedTime
+                                  ? labels.completedAt(completedTime)
+                                  : labels.completed}
                             </p>
-                          )}
-                        </>
-                      )}
+                            <div className="space-y-4">
+                              {stepTexts
+                                .slice(0, visibleCount)
+                                .map((paragraph, i) => {
+                                  const isDone =
+                                    turn.status === "done" ||
+                                    (isThisRunning && i < runningStepIndex) ||
+                                    (isThisRunning && runningStepIndex >= 4);
+                                  const isCurrent =
+                                    isThisRunning &&
+                                    i === runningStepIndex &&
+                                    runningStepIndex < 4;
+                                  return (
+                                    <div key={i} className="flex gap-2">
+                                      <span className="flex-shrink-0 mt-0.5">
+                                        {isDone ? (
+                                          <span
+                                            className="text-primary"
+                                            title={labels.doneTitle}
+                                          >
+                                            <span className="material-symbols-outlined text-[14px]">
+                                              check_circle
+                                            </span>
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
+                                        )}
+                                      </span>
+                                      <p
+                                        className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap min-w-0 ${isCurrent ? "text-slate-700 dark:text-slate-200" : ""}`}
+                                      >
+                                        {paragraph}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                            {turn.status === "running" && (
+                              <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-200 dark:border-[#282e39]">
+                                <span className="material-symbols-outlined text-primary text-[18px] animate-spin">
+                                  progress_activity
+                                </span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  {labels.processing}
+                                </span>
+                              </div>
+                            )}
+                            {turn.status === "done" && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                                {isSelected
+                                  ? labels.viewingThis
+                                  : labels.viewCode}
+                              </p>
+                            )}
+                          </>
+                        )}
                       {turn.status === "error" && (
                         <p className="text-sm text-red-500 dark:text-red-400">
                           {turn.tsx?.replace(/^\/\/\s*Error:\s*/i, "").trim() ||
@@ -981,7 +1113,7 @@ const Editor: React.FC = () => {
                   )}
                 </div>
               )}
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-sm overflow-visible focus-within:ring-2 focus-within:ring-primary/30 min-h-[48px] py-1 pl-1 pr-2">
+              <div className="flex items-end gap-2 rounded-2xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-[#1c1f27] shadow-sm overflow-visible focus-within:ring-2 focus-within:ring-primary/30 min-h-[48px] py-1 pl-1 pr-2">
                 <div ref={plusMenuRef} className="relative flex-shrink-0 z-20">
                   <button
                     type="button"
@@ -1131,7 +1263,7 @@ const Editor: React.FC = () => {
                 </div>
                 {selectedDesignPreset &&
                   DESIGN_SYSTEM_PRESETS[selectedDesignPreset] && (
-                    <div className="flex items-center gap-1.5 flex-shrink-0 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-[#3b4354] pl-2.5 pr-1.5 py-1">
+                    <div className="flex items-center mb-1 gap-1.5 flex-shrink-0 rounded-full bg-slate-100 dark:bg-[#282e39] border border-slate-200 dark:border-[#3b4354] pl-2.5 pr-1.5 py-1">
                       <span className="material-symbols-outlined text-primary text-[16px]">
                         palette
                       </span>
@@ -1155,6 +1287,7 @@ const Editor: React.FC = () => {
                     </div>
                   )}
                 <textarea
+                  ref={textareaRef}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -1164,7 +1297,7 @@ const Editor: React.FC = () => {
                     }
                   }}
                   placeholder="Ask anything — e.g. login page, dashboard, form..."
-                  className="flex-1 min-h-[44px] max-h-[48px] resize-none overflow-hidden py-2.5 px-3 text-sm text-slate-900 dark:text-white bg-transparent border-0 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-[#4d576e]"
+                  className="flex-1 min-h-[44px] max-h-[200px] resize-none overflow-y-auto py-2.5 px-3 text-sm text-slate-900 dark:text-white bg-transparent border-0 focus:ring-0 placeholder:text-slate-400 dark:placeholder:text-[#4d576e] custom-scrollbar"
                   rows={1}
                 />
                 <button
@@ -1192,11 +1325,10 @@ const Editor: React.FC = () => {
                   key={tab}
                   type="button"
                   onClick={() => setOutputTab(tab)}
-                  className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 text-sm font-medium capitalize border-b-2 transition-colors ${
-                    outputTab === tab
-                      ? "border-primary text-primary"
-                      : "border-transparent text-slate-500 dark:text-[#9da6b9] hover:text-slate-700 dark:hover:text-white"
-                  }`}
+                  className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 text-sm font-medium capitalize border-b-2 transition-colors ${outputTab === tab
+                    ? "border-primary text-primary"
+                    : "border-transparent text-slate-500 dark:text-[#9da6b9] hover:text-slate-700 dark:hover:text-white"
+                    }`}
                 >
                   {tab === "code" && (
                     <span className="material-symbols-outlined text-lg">
@@ -1274,9 +1406,9 @@ const Editor: React.FC = () => {
                   <pre className="flex-1 min-h-0 overflow-auto p-4 font-mono text-sm text-slate-700 dark:text-[#9da6b9] bg-[#0d1117] custom-scrollbar whitespace-pre">
                     {activeCodeTab === "tsx"
                       ? generatedTsx ||
-                        "// Enter a prompt and click Send to generate TSX + HTML code."
+                      "// Enter a prompt and click Send to generate TSX + HTML code."
                       : generatedHtml ||
-                        "<!-- Enter a prompt and click Send to generate code. -->"}
+                      "<!-- Enter a prompt and click Send to generate code. -->"}
                   </pre>
                 </div>
               )}
@@ -1297,11 +1429,10 @@ const Editor: React.FC = () => {
                           key={id}
                           type="button"
                           onClick={() => setDevice(id)}
-                          className={`min-h-[40px] min-w-[40px] flex items-center justify-center rounded-md transition-colors ${
-                            device === id
-                              ? "bg-primary/20 text-primary"
-                              : "text-slate-500 dark:text-[#9da6b9] hover:bg-slate-100 dark:hover:bg-[#282e39]"
-                          }`}
+                          className={`min-h-[40px] min-w-[40px] flex items-center justify-center rounded-md transition-colors ${device === id
+                            ? "bg-primary/20 text-primary"
+                            : "text-slate-500 dark:text-[#9da6b9] hover:bg-slate-100 dark:hover:bg-[#282e39]"
+                            }`}
                         >
                           <span className="material-symbols-outlined text-[20px]">
                             {icon}
@@ -1311,13 +1442,12 @@ const Editor: React.FC = () => {
                     </div>
                   </div>
                   <div
-                    className={`flex-1 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-slate-900 overflow-hidden transition-all ${
-                      device === "desktop"
-                        ? "max-w-full"
-                        : device === "tablet"
-                          ? "max-w-[768px] mx-auto w-full"
-                          : "max-w-[375px] mx-auto w-full"
-                    }`}
+                    className={`flex-1 rounded-xl border border-slate-200 dark:border-[#282e39] bg-white dark:bg-slate-900 overflow-hidden transition-all ${device === "desktop"
+                      ? "max-w-full"
+                      : device === "tablet"
+                        ? "max-w-[768px] mx-auto w-full"
+                        : "max-w-[375px] mx-auto w-full"
+                      }`}
                   >
                     <iframe
                       title="Preview"
