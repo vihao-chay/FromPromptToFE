@@ -64,7 +64,7 @@ const Profile: React.FC = () => {
       setError(null);
       try {
         const res = await authService.getMe();
-        const content = res.data?.content as Record<string, unknown> | undefined;
+        const content = res.data?.content as unknown as Record<string, unknown> | undefined;
         const u = normalizeUser(content ?? null);
         if (cancelled) return;
         setUser(u);
@@ -95,7 +95,7 @@ const Profile: React.FC = () => {
     setSuccessMessage(null);
     try {
       const res = await authService.updateProfile({ name: nameInput.trim(), avatarUrl: avatarInput.trim() || undefined });
-      const content = res.data?.content as Record<string, unknown> | undefined;
+      const content = res.data?.content as unknown as Record<string, unknown> | undefined;
       const updated = normalizeUser(content ?? null);
       if (updated) {
         setUser(updated);
