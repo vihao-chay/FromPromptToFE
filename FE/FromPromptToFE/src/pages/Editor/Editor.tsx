@@ -278,9 +278,24 @@ const Editor: React.FC = () => {
     if (!isTemplateDragging || !templateScrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - templateScrollRef.current.offsetLeft;
-    const walk = (x - templateStartX) * 1.5; // Tốc độ cuộn
+    const walk = (x - templateStartX) * 1.5;
     templateScrollRef.current.scrollLeft = templateScrollLeft - walk;
   };
+
+  useEffect(() => {
+    const el = templateScrollRef.current;
+    if (!el) return;
+
+    const handleWheelNative = (e: WheelEvent) => {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("wheel", handleWheelNative, { passive: false });
+
+    return () => {
+      el.removeEventListener("wheel", handleWheelNative);
+    };
+  }, []);
 
   const handleTemplateWheel = (e: React.WheelEvent) => {
     if (templateScrollRef.current) {

@@ -44,18 +44,42 @@ const getProjectPreviewHtml = (projectId: string): string | null => {
 /** Viewport width for thumbnail — content lays out at this width so preview looks crisp. */
 const PREVIEW_VIEWPORT_WIDTH = 400;
 
-/** Injects viewport + styles so iframe preview looks sharp (no scrollbar, clean thumbnail). */
+/** Injects Tailwind CSS + styles so iframe preview looks sharp */
 const htmlForPreview = (raw: string): string => {
-  const style = `<meta name="viewport" content="width=${PREVIEW_VIEWPORT_WIDTH}, initial-scale=1">
+  // Script nhúng Tailwind CSS qua CDN
+  const tailwindScript = `<script src="https://cdn.tailwindcss.com"></script>`;
+
+  const style = `
 <style>
-  html, body { overflow: hidden !important; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
-  body { width: ${PREVIEW_VIEWPORT_WIDTH}px; min-width: ${PREVIEW_VIEWPORT_WIDTH}px; max-width: ${PREVIEW_VIEWPORT_WIDTH}px; box-sizing: border-box; }
+  ::-webkit-scrollbar { display: none !important; }
+  html, body { overflow: hidden !important; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; background-color: transparent; }
   * { box-sizing: border-box; }
 </style>`;
+
+  // Nếu chuỗi HTML do AI sinh ra đã có thẻ <head>
   if (/<head[\s>]/i.test(raw)) {
-    return raw.replace(/<head([^>]*)>/i, `<head$1>${style}`);
+    let injected = raw;
+    // Kiểm tra xem AI đã tự chèn tailwind chưa, nếu chưa thì mình chèn thêm vào
+    if (!injected.includes('tailwindcss.com')) {
+      injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n${tailwindScript}\n${style}`);
+    } else {
+      injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n${style}`);
+    }
+    return injected;
   }
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">${style}</head><body>${raw}</body></html>`;
+
+  // Nếu AI chỉ trả về mỗi thẻ <div> trần, mình bọc lại thành 1 trang HTML hoàn chỉnh
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    ${tailwindScript}
+    ${style}
+  </head>
+  <body>
+    ${raw}
+  </body>
+</html>`;
 };
 
 const mapApiProjectToProject = (p: {
@@ -190,13 +214,13 @@ const Dashboard: React.FC = () => {
     if (editTarget.type === 'org') {
       organizationService.update(editTarget.id, editName.trim(), editTarget.plan ?? '').then(() => {
         setOrganizations((prev) => prev.map((o) => (o.id === editTarget.id ? { ...o, name: editName.trim() } : o)));
-        changeLogService.create({ organizationId: editTarget.id, entityType: 'Organization', entityId: editTarget.id, action: 'Update' }).catch(() => {});
+        changeLogService.create({ organizationId: editTarget.id, entityType: 'Organization', entityId: editTarget.id, action: 'Update' }).catch(() => { });
       }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     } else {
       const orgId = editTarget.organizationId ?? allProjects.find((p) => p.id === editTarget.id)?.organizationId;
       projectService.update(editTarget.id, { name: editName.trim() }).then(() => {
         setAllProjects((prev) => prev.map((p) => (p.id === editTarget.id ? { ...p, name: editName.trim() } : p)));
-        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: editTarget.id, action: 'Update' }).catch(() => {});
+        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: editTarget.id, action: 'Update' }).catch(() => { });
       }).catch(() => { }).finally(() => { setEditTarget(null); setEditName(''); });
     }
   };
@@ -206,23 +230,23 @@ const Dashboard: React.FC = () => {
     if (deleteTarget.type === 'org') {
       organizationService.delete(deleteTarget.id).then(() => {
         setOrganizations((prev) => prev.filter((o) => o.id !== deleteTarget.id));
-        changeLogService.create({ organizationId: deleteTarget.id, entityType: 'Organization', entityId: deleteTarget.id, action: 'Delete' }).catch(() => {});
+        changeLogService.create({ organizationId: deleteTarget.id, entityType: 'Organization', entityId: deleteTarget.id, action: 'Delete' }).catch(() => { });
       }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     } else {
       const orgId = deleteTarget.organizationId ?? allProjects.find((p) => p.id === deleteTarget.id)?.organizationId;
       projectService.delete(deleteTarget.id).then(() => {
         setAllProjects((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: deleteTarget.id, action: 'Delete' }).catch(() => {});
+        if (orgId) changeLogService.create({ organizationId: orgId, entityType: 'Project', entityId: deleteTarget.id, action: 'Delete' }).catch(() => { });
       }).catch(() => { }).finally(() => { setDeleteTarget(null); setMenuOpen(null); });
     }
   };
 
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
-      case ProjectStatus.ACTIVE: return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case ProjectStatus.DRAFT: return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-      case ProjectStatus.COMPLETED: return 'bg-primary/10 text-primary border-primary/20';
-      case ProjectStatus.ARCHIVED: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
+      case ProjectStatus.ACTIVE: return 'bg-green-500/10 text-green-500';
+      case ProjectStatus.DRAFT: return 'bg-amber-500/10 text-amber-500';
+      case ProjectStatus.COMPLETED: return 'bg-blue-500/10 text-blue-500';
+      case ProjectStatus.ARCHIVED: return 'bg-slate-500/10 text-slate-500';
       case ProjectStatus.STABLE: return 'bg-primary/10 text-primary';
       case ProjectStatus.IN_PROGRESS: return 'bg-amber-500/10 text-amber-600';
       default: return 'bg-slate-500/10 text-slate-500';
@@ -368,17 +392,17 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {projectsLoading ? (
           [1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-pulse">
-              <div className="aspect-video bg-slate-200 dark:bg-slate-700" />
+            <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-pulse bg-[#1a1f2c]">
+              <div className="aspect-video bg-slate-800" />
               <div className="p-5 space-y-2">
-                <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                <div className="h-5 bg-slate-700 rounded w-3/4" />
+                <div className="h-4 bg-slate-700 rounded w-1/2" />
               </div>
             </div>
           ))
         ) : recentProjects.length === 0 ? (
           <div className="col-span-full text-center py-12 text-slate-500 dark:text-slate-400">
-            No projects yet. Create a new project (draft) with the button above, or generate code in the Editor — drafts and generated projects will appear here.
+            No projects yet. Create a new project (draft) with the button above, or generate code in the Editor.
           </div>
         ) : recentProjects.map((project) => {
           const previewHtml = project.generatedHtml ?? getProjectPreviewHtml(project.id);
@@ -387,22 +411,21 @@ const Dashboard: React.FC = () => {
             : project.status === ProjectStatus.COMPLETED
               ? COMPLETED_PLACEHOLDER
               : PLACEHOLDER_IMAGE;
+
           return (
-            <div key={project.id} className="group relative flex flex-col bg-white dark:bg-[#1c2230] border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-primary/40 hover:shadow-xl transition-all duration-300 min-h-0">
-              <div className="relative aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden bg-slate-900">
+            <div key={project.id} className="group relative flex flex-col bg-white dark:bg-[#1a1f2c] border border-slate-200 dark:border-slate-800/80 rounded-xl p-3.5 hover:border-primary/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 min-h-0">
+
+              {/* Preview Area (Có border và background đen như ảnh) */}
+              <div className="relative aspect-[4/3] sm:aspect-video w-full min-h-0 flex-shrink-0 overflow-hidden rounded-lg bg-[#0d1117] border border-slate-800/60">
                 {previewHtml ? (
-                  <div className="absolute inset-0 overflow-hidden min-h-0 min-w-0">
-                    <div
-                      className="absolute left-1/2 top-1/2 w-[200%] h-[200%] origin-center"
-                      style={{
-                        transform: 'translate(-50%, -50%) scale(0.5)',
-                      }}
-                    >
+                  <div className="absolute inset-0 overflow-hidden">
+                    {/* Tạo khung desktop ảo to gấp 4 lần rồi scale xuống 25% */}
+                    <div className="absolute top-0 left-0 w-[400%] h-[400%] origin-top-left scale-[0.25]">
                       <iframe
                         title="Preview"
                         srcDoc={htmlForPreview(previewHtml)}
-                        className="w-full h-full border-0 pointer-events-none block bg-white dark:bg-slate-900"
-                        sandbox="allow-same-origin"
+                        className="w-full h-full border-0 pointer-events-none block bg-transparent"
+                        sandbox="allow-same-origin allow-scripts"
                       />
                     </div>
                   </div>
@@ -412,24 +435,31 @@ const Dashboard: React.FC = () => {
                     style={{ backgroundImage: `url('${placeholderUrl}')` }}
                   />
                 )}
-                <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Link to={`/editor${project.id ? `?projectId=${encodeURIComponent(project.id)}` : ''}`} className="bg-white text-primary px-4 py-2 rounded-lg font-bold text-sm shadow-xl">Open Editor</Link>
+                {/* Nút Open Editor hiện lên khi Hover */}
+                <div className="absolute inset-0 bg-[#0d1117]/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                  <Link to={`/editor${project.id ? `?projectId=${encodeURIComponent(project.id)}` : ''}`} className="bg-primary text-white px-5 py-2.5 rounded-lg font-semibold text-sm shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-all">
+                    Open Editor
+                  </Link>
                 </div>
               </div>
-              <div className="p-4 flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between items-start gap-2">
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug line-clamp-2 flex-1 min-w-0">{project.name}</h4>
-                  <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase ${getStatusColor(project.status)}`}>{project.status}</span>
+
+              {/* Info Area (Nằm dưới Preview giống ảnh) */}
+              <div className="pt-4 pb-1 px-1 flex flex-col gap-1.5">
+                <div className="flex justify-between items-center gap-2">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-[15px] leading-snug truncate flex-1">{project.name}</h4>
+                  <span className={`flex-shrink-0 px-2.5 py-1 rounded border border-transparent dark:border-current/10 text-[9px] font-bold uppercase tracking-wider ${getStatusColor(project.status)}`}>
+                    {project.status}
+                  </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[14px]">schedule</span>
+                <p className="text-[13px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                  <span className="material-symbols-outlined text-[15px]">schedule</span>
                   {project.createdAt}
                 </p>
               </div>
+
             </div>
           );
-        })
-        }
+        })}
       </div>
 
       {/* Activity Table */}
