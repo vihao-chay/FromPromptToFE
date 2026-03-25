@@ -74,7 +74,7 @@ const Navbar: React.FC = () => {
                   className={`text-sm font-medium transition-colors ${isActive('/change-logs') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
                   to="/change-logs"
                 >
-                  Change Logs
+                  ChangeLog
                 </Link>
                 <Link
                   className={`text-sm font-medium transition-colors ${isActive('/github-integration') || isActive('/github-status') ? 'text-primary' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}
