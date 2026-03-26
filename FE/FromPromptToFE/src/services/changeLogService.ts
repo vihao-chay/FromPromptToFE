@@ -66,6 +66,10 @@ const changeLogService = {
       `/api/change-logs${qs ? `?${qs}` : ''}`
     );
   },
+
+  getById: (id: string) => {
+    return api.get<{ content: ChangeLogDto }>(`/api/change-logs/${id}`);
+  },
 };
 
 export default changeLogService;

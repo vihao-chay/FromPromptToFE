@@ -1,6 +1,7 @@
 import Footer from "../../components/Footer";
 import DarkVeil from "../../components/ui/DarkVeil"
 import LiquidNavbar from "../../components/ui/LiquidNavbar"
+import PrismaticBurst from "@/src/components/ui/PrismaticBurst";
 import { Link } from 'react-router-dom';
 
 const HomePage = () => {
@@ -8,13 +9,17 @@ const HomePage = () => {
         <div className="relative w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-black text-white">
             <LiquidNavbar />
             <div className="absolute inset-0 z-0">
-                <DarkVeil
-                    hueShift={0}
-                    noiseIntensity={0}
-                    scanlineIntensity={0}
-                    speed={1}
-                    scanlineFrequency={0}
-                    warpAmount={0}
+                <PrismaticBurst
+                    animationType="rotate3d"
+                    intensity={1.5}
+                    speed={0.5}
+                    distort={5}
+                    paused={false}
+                    offset={{ x: 0, y: 0 }}
+                    hoverDampness={0.25}
+                    rayCount={0}
+                    mixBlendMode="lighten"
+                    colors={['#d400ffff', '#1500ffff', '#ffffff']}
                 />
             </div>
             <div className="z-10 text-center px-4 max-w-4xl mx-auto flex flex-col items-center gap-8">

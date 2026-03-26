@@ -18,15 +18,15 @@ const MACHINE_IP = "192.168.1.120";
 const USE_LOCALHOST_FOR_WEB = false;
 
 /** Tunnel: dùng URL cố định (chạy localtunnel với --subdomain fptfe). Set null để dùng IP (REAL_DEVICE). */
-const API_URL_OVERRIDE = null;
+const API_URL_OVERRIDE = "https://fptfe5274.loca.lt";
 
 export const API_CONFIG = {
     // For Android Emulator
     EMULATOR: "http://10.0.2.2:5274",
-    
+
     // For Real Device (use your machine IP)
     REAL_DEVICE: `http://${MACHINE_IP}:5274`,
-    
+
     // Request timeout in milliseconds
     TIMEOUT: 15000,
 };
