@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import authService from '../services/authService';
+import { useTheme } from '../hooks/useTheme';
 
 /** Decode JWT payload without any library — just base64 the middle part */
 const getJwtRole = (): string | null => {
@@ -21,6 +22,7 @@ const getJwtRole = (): string | null => {
 const Navbar: React.FC = () => {
   const location = useLocation();
   const role = useMemo(getJwtRole, [location.pathname]); // re-check on route change
+  const { theme, toggleTheme } = useTheme();
 
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userInitial, setUserInitial] = useState<string>('');
@@ -107,6 +109,18 @@ const Navbar: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="relative h-9 w-9 rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary transition-all duration-300 cursor-pointer"
+              aria-label="Toggle dark mode"
+              title={theme === 'dark' ? 'Chuyển sang Light Mode' : 'Chuyển sang Dark Mode'}
+            >
+              <span
+                className={`material-symbols-outlined text-[20px] transition-transform duration-500 ${theme === 'dark' ? 'rotate-0' : 'rotate-[360deg]'}`}
+              >
+                {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
             <Link to="/profile" className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-primary/20 flex items-center justify-center">
               {userAvatar ? (
                 <img src={userAvatar} alt="Avatar" className="h-full w-full object-cover" />

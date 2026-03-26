@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "./hooks/useTheme";
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/Home/HomePage";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -62,6 +63,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <div className="flex flex-col min-h-screen">
         {isAuthenticated && <Navbar />}
@@ -322,6 +324,7 @@ const App: React.FC = () => {
         )}
       </div>
     </BrowserRouter>
+    </ThemeProvider>
   );
 };
 

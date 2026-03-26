@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
+import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light';
+import { useTheme } from '../../hooks/useTheme';
 import { generateCode } from "../../services/codeGenService";
 import organizationService from "../../services/organizationService";
 import projectService, { getContent } from "../../services/projectService";
@@ -201,6 +203,7 @@ type ChatTurn =
   };
 
 const Editor: React.FC = () => {
+  const { theme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectIdFromUrl = searchParams.get("projectId") ?? "";
 
@@ -1420,10 +1423,10 @@ const Editor: React.FC = () => {
                       </Link>
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-auto bg-[#0d1117] custom-scrollbar">
+                  <div className={`flex-1 min-h-0 overflow-auto custom-scrollbar ${theme === 'dark' ? 'bg-[#0d1117]' : 'bg-[#fafbfc]'}`}>
                     <SyntaxHighlighter
                       language={activeCodeTab === "tsx" ? "tsx" : "html"}
-                      style={vscDarkPlus}
+                      style={theme === 'dark' ? vscDarkPlus : oneLight}
                       customStyle={{
                         margin: 0,
                         padding: '1rem',
