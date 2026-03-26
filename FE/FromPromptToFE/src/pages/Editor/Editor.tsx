@@ -8,6 +8,8 @@ import organizationService from "../../services/organizationService";
 import projectService, { getContent } from "../../services/projectService";
 import projectOutputService from "../../services/projectOutputService";
 import changeLogService from "../../services/changeLogService";
+import { htmlForPreview } from "../../lib/htmlPreview";
+import { fetchContentIfUrl, uploadToSupabaseAndGetUrl } from "../../lib/supabaseClient";
 
 const PROMPT_HISTORY_KEY = "editor_prompt_history";
 const PROMPT_HISTORY_MAX = 15;
@@ -479,8 +481,15 @@ const Editor: React.FC = () => {
     if (!selectedOutputId || outputsList.length === 0) return;
     const out = outputsList.find((o) => (o.id ?? o.Id) === selectedOutputId);
     if (out) {
-      setGeneratedTsx(out.generatedTsx ?? "");
-      setGeneratedHtml(out.generatedHtml ?? "");
+      setGeneratedTsx("// Loading code...");
+      setGeneratedHtml("");
+      Promise.all([
+        fetchContentIfUrl(out.generatedTsx ?? ""),
+        fetchContentIfUrl(out.generatedHtml ?? "")
+      ]).then(([tsxStr, htmlStr]) => {
+        setGeneratedTsx(tsxStr);
+        setGeneratedHtml(htmlStr);
+      });
     }
   }, [selectedOutputId, outputsList]);
 
@@ -623,18 +632,29 @@ const Editor: React.FC = () => {
           { role: "user" as const, content: userText },
         ];
         const promptHistoryJson = JSON.stringify(promptHistoryEntries);
-        const savePayload = {
-          generatedTsx: tsx,
-          generatedHtml: html,
-          systemPrompt: userText,
-          userPrompt: userText,
-          taskStatus: "Success",
-          stepOutput: stepOutputJson,
-          promptHistory: promptHistoryJson,
-        };
         const doSaveOutput = async (projectId: string) => {
           setOutputSaveError(null);
           try {
+            let finalTsx = tsx;
+            let finalHtml = html;
+            const tsxPath = `projects/${projectId}/${Date.now()}_code.tsx`;
+            const htmlPath = `projects/${projectId}/${Date.now()}_page.html`;
+            
+            const uploadedTsx = await uploadToSupabaseAndGetUrl(tsx, tsxPath, 'text/plain');
+            if (uploadedTsx) finalTsx = uploadedTsx;
+            
+            const uploadedHtml = await uploadToSupabaseAndGetUrl(htmlForPreview(html, false), htmlPath, 'text/html');
+            if (uploadedHtml) finalHtml = uploadedHtml;
+
+            const savePayload = {
+              generatedTsx: finalTsx,
+              generatedHtml: finalHtml,
+              systemPrompt: userText,
+              userPrompt: userText,
+              taskStatus: "Success",
+              stepOutput: stepOutputJson,
+              promptHistory: promptHistoryJson,
+            };
             await projectOutputService.saveOutput(projectId, savePayload);
             changeLogService.create({ entityType: "ProjectOutput", entityId: projectId, action: "Generate" }).catch(() => { });
             if (html)
@@ -1481,8 +1501,8 @@ const Editor: React.FC = () => {
                       title="Preview"
                       srcDoc={
                         generatedHtml
-                          ? generatedHtml
-                          : "<html><body style='margin:0;padding:24px;font-family:system-ui'><h1>Generated UI Preview</h1><p>Run generation to see TSX + HTML. Preview shows HTML.</p></body></html>"
+                          ? htmlForPreview(generatedHtml)
+                          : htmlForPreview("<html><body style='margin:0;padding:24px;font-family:system-ui'><h1>Generated UI Preview</h1><p>Run generation to see TSX + HTML. Preview shows HTML.</p></body></html>")
                       }
                       className="w-full h-full min-h-[280px]"
                     />

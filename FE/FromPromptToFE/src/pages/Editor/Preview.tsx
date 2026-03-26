@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { generateCode } from '../../services/geminiService';
+import { htmlForPreview } from '../../lib/htmlPreview';
 
 const Preview: React.FC = () => {
   const [generatedTsx, setGeneratedTsx] = useState<string>('// Generating code...');
@@ -150,7 +151,7 @@ const Preview: React.FC = () => {
             </div>
             <div className="flex-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark overflow-hidden relative group">
               {generatedHtml ? (
-                <iframe title="HTML Preview" srcDoc={generatedHtml} className="w-full h-full min-h-[300px]" />
+                <iframe title="HTML Preview" srcDoc={htmlForPreview(generatedHtml)} className="w-full h-full min-h-[300px]" />
               ) : (
                 <div className="w-full h-full p-8 flex flex-col justify-center">
                   <div className="space-y-6 max-w-lg">

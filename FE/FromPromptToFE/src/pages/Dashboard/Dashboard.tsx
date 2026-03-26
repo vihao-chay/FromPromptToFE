@@ -6,6 +6,7 @@ import organizationService from '../../services/organizationService';
 import projectService from '../../services/projectService';
 import organizationMemberService from '../../services/oganizationMemberService';
 import changeLogService from '../../services/changeLogService';
+import { htmlForPreview } from '../../lib/htmlPreview';
 
 interface Organization {
   id: string;
@@ -44,43 +45,6 @@ const getProjectPreviewHtml = (projectId: string): string | null => {
 /** Viewport width for thumbnail — content lays out at this width so preview looks crisp. */
 const PREVIEW_VIEWPORT_WIDTH = 400;
 
-/** Injects Tailwind CSS + styles so iframe preview looks sharp */
-const htmlForPreview = (raw: string): string => {
-  // Script nhúng Tailwind CSS qua CDN
-  const tailwindScript = `<script src="https://cdn.tailwindcss.com"></script>`;
-
-  const style = `
-<style>
-  ::-webkit-scrollbar { display: none !important; }
-  html, body { overflow: hidden !important; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; background-color: transparent; }
-  * { box-sizing: border-box; }
-</style>`;
-
-  // Nếu chuỗi HTML do AI sinh ra đã có thẻ <head>
-  if (/<head[\s>]/i.test(raw)) {
-    let injected = raw;
-    // Kiểm tra xem AI đã tự chèn tailwind chưa, nếu chưa thì mình chèn thêm vào
-    if (!injected.includes('tailwindcss.com')) {
-      injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n${tailwindScript}\n${style}`);
-    } else {
-      injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n${style}`);
-    }
-    return injected;
-  }
-
-  // Nếu AI chỉ trả về mỗi thẻ <div> trần, mình bọc lại thành 1 trang HTML hoàn chỉnh
-  return `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    ${tailwindScript}
-    ${style}
-  </head>
-  <body>
-    ${raw}
-  </body>
-</html>`;
-};
 
 const mapApiProjectToProject = (p: {
   id?: string; Id?: string; name?: string; Name?: string; projectType?: string;
@@ -406,6 +370,7 @@ const Dashboard: React.FC = () => {
           </div>
         ) : recentProjects.map((project) => {
           const previewHtml = project.generatedHtml ?? getProjectPreviewHtml(project.id);
+          const isHtmlUrl = previewHtml?.startsWith('http') ?? false;
           const placeholderUrl = project.status === ProjectStatus.DRAFT
             ? DRAFT_PLACEHOLDER
             : project.status === ProjectStatus.COMPLETED
@@ -423,7 +388,7 @@ const Dashboard: React.FC = () => {
                     <div className="absolute top-0 left-0 w-[400%] h-[400%] origin-top-left scale-[0.25]">
                       <iframe
                         title="Preview"
-                        srcDoc={htmlForPreview(previewHtml)}
+                        {...(isHtmlUrl ? { src: previewHtml + (previewHtml.includes('?') ? '&' : '?') + 'thumbnail=true' } : { srcDoc: htmlForPreview(previewHtml, true) })}
                         className="w-full h-full border-0 pointer-events-none block bg-transparent"
                         sandbox="allow-same-origin allow-scripts"
                       />
