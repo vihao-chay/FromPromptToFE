@@ -89,12 +89,12 @@ namespace FromFromptToFE.Services
 
             if (user.IsVerified != true)
             {
-                throw new Exception("Tài khoản chưa được xác thực");
+                throw new Exception("Your account has not been verified");
             }
 
             if (!user.IsActive)
             {
-                throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+                throw new Exception("Your account has been banned. Please contact the administrator.");
             }
 
             var role = user.IsAdmin == true ? "Admin" : "User";
@@ -194,7 +194,7 @@ namespace FromFromptToFE.Services
                 }
 
                 if (!user.IsActive)
-                    throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+                    throw new Exception("Your account has been banned. Please contact the administrator.");
 
                 var role = user.IsAdmin == true ? "Admin" : "User";
 
@@ -212,7 +212,7 @@ namespace FromFromptToFE.Services
             }
             catch (Exception ex)
             {
-                throw new Exception($"Lỗi xử lý đăng nhập Google: {ex.Message}");
+                throw new Exception($"Error processing Google login: {ex.Message}");
             }
         }
 
@@ -340,7 +340,7 @@ namespace FromFromptToFE.Services
 
                     if (string.IsNullOrEmpty(email))
                     {
-                        throw new Exception("Không thể lấy email từ GitHub. Vui lòng đảm bảo email của bạn được public hoặc cấp quyền user:email.");
+                        throw new Exception("Unable to retrieve email from GitHub. Please ensure your email is public or that you have granted user:email permission.");
                     }
 
                     // Find or create user
@@ -373,7 +373,7 @@ namespace FromFromptToFE.Services
                     }
 
                     if (!user.IsActive)
-                        throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+                        throw new Exception("Your account has been banned. Please contact the administrator.");
 
                     var role = user.IsAdmin == true ? "Admin" : "User";
 
@@ -392,7 +392,7 @@ namespace FromFromptToFE.Services
             }
             catch (Exception ex)
             {
-                throw new Exception($"Lỗi xử lý đăng nhập GitHub: {ex.Message}");
+                throw new Exception($"Error processing GitHub login: {ex.Message}");
             }
         }
 
@@ -429,7 +429,7 @@ namespace FromFromptToFE.Services
 
             // Generate Token for Auto-Login
             if (!user.IsActive)
-                throw new Exception("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+                throw new Exception("Your account has been banned. Please contact the administrator.");
 
             var role = user.IsAdmin == true ? "Admin" : "User";
 
@@ -486,7 +486,7 @@ namespace FromFromptToFE.Services
             var user = await _userRepository.GetByEmailAsync(dto.Email);
             if (user == null || user.IsVerified == true)
             {
-                throw new Exception("Email không hợp lệ hoặc tài khoản đã được xác thực");
+                throw new Exception("Invalid email or account has already been verified");
             }
 
             user.VerifyToken = Guid.NewGuid().ToString("N");
