@@ -2,10 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
+import oneLight from 'react-syntax-highlighter/dist/esm/styles/prism/one-light';
 import { generateCode } from '../../services/geminiService';
+import { useTheme } from '../../hooks/useTheme';
 import { htmlForPreview } from '../../lib/htmlPreview';
 
 const Preview: React.FC = () => {
+  const { theme } = useTheme();
   const [generatedTsx, setGeneratedTsx] = useState<string>('// Generating code...');
   const [generatedHtml, setGeneratedHtml] = useState<string>('');
   const [activeFile, setActiveFile] = useState<'index.tsx' | 'index.html'>('index.tsx');
@@ -64,30 +67,30 @@ const Preview: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden">
         {/* Left Pane: Code Viewer */}
-        <section className="w-1/2 flex flex-col border-r border-slate-200 dark:border-border-dark bg-[#0d1117]">
-          <div className="h-10 border-b border-slate-800 flex items-center justify-between px-4 bg-[#161b22] shrink-0">
+        <section className={`w-1/2 flex flex-col border-r border-slate-200 dark:border-border-dark ${theme === 'dark' ? 'bg-[#0d1117]' : 'bg-[#fafbfc]'}`}>
+          <div className={`h-10 border-b flex items-center justify-between px-4 shrink-0 ${theme === 'dark' ? 'border-slate-800 bg-[#161b22]' : 'border-slate-200 bg-slate-100'}`}>
             <div className="flex items-center gap-4 h-full">
               <div
-                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.tsx' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.tsx' ? 'border-primary text-primary' : `border-transparent ${theme === 'dark' ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}`}
                 onClick={() => setActiveFile('index.tsx')}
               >
                 <span className="material-symbols-outlined text-sm">code</span> index.tsx
               </div>
               <div
-                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.html' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                className={`h-full border-b-2 px-4 flex items-center gap-2 text-sm font-medium cursor-pointer transition-all ${activeFile === 'index.html' ? 'border-primary text-primary' : `border-transparent ${theme === 'dark' ? 'text-slate-500 hover:text-slate-300' : 'text-slate-500 hover:text-slate-700'}`}`}
                 onClick={() => setActiveFile('index.html')}
               >
                 <span className="material-symbols-outlined text-sm">code</span> index.html
               </div>
             </div>
-            <button className="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-xs uppercase font-bold">
+            <button className={`transition-colors flex items-center gap-1 text-xs uppercase font-bold ${theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}>
               <span className="material-symbols-outlined text-sm">content_copy</span> Copy
             </button>
           </div>
-          <div className="flex-1 overflow-auto bg-[#1e1e1e] custom-scrollbar">
+          <div className={`flex-1 overflow-auto custom-scrollbar ${theme === 'dark' ? 'bg-[#1e1e1e]' : 'bg-[#fafbfc]'}`}>
             <SyntaxHighlighter
               language={activeFile === 'index.tsx' ? "tsx" : "html"}
-              style={vscDarkPlus}
+              style={theme === 'dark' ? vscDarkPlus : oneLight}
               customStyle={{
                 margin: 0,
                 padding: '1rem',
